@@ -107,8 +107,11 @@ impl JD {
     }
 
     /// 儒略日转当前时间
-    pub fn set_from_jd(&mut self, jd: f64) {
+    pub fn set_from_jd(&mut self, jd: f64) -> bool {
         let r = self.dd(jd);
+        if r[1]>12.0 || r[1]<=0.0 || r[2].floor() > 31.0 || r[2] <=0.0 {
+            return false;
+        }
         self.year = r[0] as i32;
         self.month = r[1] as i32;
         self.day = r[2].floor() as i32;
@@ -117,6 +120,8 @@ impl JD {
         self.hour = (s * 24.0).floor();
         self.minute = ((s * 24.0 - self.hour) * 60.0).floor();
         self.second = (((s * 24.0 - self.hour) * 60.0 - self.minute) * 60.0).floor();
+
+        return true;
     }
 
     /// 获取时间字符串

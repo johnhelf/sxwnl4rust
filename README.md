@@ -55,82 +55,6 @@ fn main() {
 }
 ```
 
-### 天文历计算
-
-```rust
-use sxwnl4rust::eph::Eph;
-use sxwnl4rust::util::jd::{ date_to_jd, jd_to_date };
-
-fn main() {
-    // 创建天文历实例
-    let mut eph = Eph::new();
-    
-    // 计算指定日期的儒略日
-    let jd = date_to_jd(2023, 5, 1, 12.0);
-    
-    // 计算太阳位置
-    let sun_pos = eph.get_sun_position(jd);
-    println!("太阳位置: 赤经 {:.4}°, 赤纬 {:.4}°", sun_pos.ra, sun_pos.dec);
-    
-    // 计算月亮位置
-    let moon_pos = eph.get_moon_position(jd);
-    println!("月亮位置: 赤经 {:.4}°, 赤纬 {:.4}°", moon_pos.ra, moon_pos.dec);
-    println!("月相: {:.2}%", moon_pos.phase * 100.0);
-    
-    // 计算行星位置
-    let planets = eph.get_planet_positions(jd);
-    for (name, pos) in planets {
-        println!("{}: 赤经 {:.4}°, 赤纬 {:.4}°", name, pos.ra, pos.dec);
-    }
-}
-```
-
-### 日食和月食计算
-
-```rust
-use sxwnl4rust::eph::Eph;
-use chrono::{NaiveDate, Datelike};
-
-fn main() {
-    let mut eph = Eph::new();
-    
-    // 计算指定年份的日食
-    let year = 2023;
-    let solar_eclipses = eph.get_solar_eclipses(year);
-    
-    println!("{}年的日食:", year);
-    for eclipse in solar_eclipses {
-        let date = NaiveDate::from_ymd_opt(
-            eclipse.date.year, 
-            eclipse.date.month as u32, 
-            eclipse.date.day as u32
-        ).unwrap();
-        
-        println!("日期: {}, 类型: {}, 最大食分: {:.2}", 
-                 date.format("%Y-%m-%d"), 
-                 eclipse.eclipse_type, 
-                 eclipse.magnitude);
-    }
-    
-    // 计算指定年份的月食
-    let lunar_eclipses = eph.get_lunar_eclipses(year);
-    
-    println!("\n{}年的月食:", year);
-    for eclipse in lunar_eclipses {
-        let date = NaiveDate::from_ymd_opt(
-            eclipse.date.year, 
-            eclipse.date.month as u32, 
-            eclipse.date.day as u32
-        ).unwrap();
-        
-        println!("日期: {}, 类型: {}, 食分: {:.2}", 
-                 date.format("%Y-%m-%d"), 
-                 eclipse.eclipse_type, 
-                 eclipse.magnitude);
-    }
-}
-```
-
 ### 二十四节气计算
 
 ```rust
@@ -157,7 +81,7 @@ fn main() {
 }
 ```
 
-更多示例请参考 `examples` 目录下的示例代码（还没上传，后续添加）。
+更多示例请参考 `examples` 目录下的示例代码。
 
 ## 目录结构
 
@@ -184,12 +108,10 @@ sxwnl4rust/
 │   │   └── ...
 │   └── ...
 ├── examples/            # 示例代码
-│   ├── basic_usage.rs   # 基本用法示例
+│   ├── eph_calculation.rs   # 基本用法示例
+│   ├── lunar_date.rs   # 农历日期转换示例
 │   └── ...
-└── tests/               # 测试代码
-    ├── lunar_tests.rs   # 农历测试
-    ├── eph_tests.rs     # 天文历测试
-    └── ...
+
 ```
 
 ## 致谢

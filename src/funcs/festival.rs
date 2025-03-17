@@ -1,9 +1,9 @@
-use chrono::{DateTime, Datelike, Utc};
+// use chrono::{Datelike};
 use lazy_static::lazy_static;
-use crate::lunar::LunarDay;
+use crate::lunar::lunar::{LunarDay};
 
 /// 节日信息结构
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct FestivalInfo {
     /// 重要节日(A级) 
     pub major: Vec<String>,  
@@ -32,7 +32,7 @@ impl FestivalInfo {
 
 lazy_static! {
     /// 周节日数据
-    const WEEK_FESTIVALS: &'static str = concat!(
+    static ref WEEK_FESTIVALS: &'static str = concat!(
         "0150I世界麻风日|", // 一月最后一个星期日
         "0520.国际母亲节|", 
         "0530I全国助残日|",
@@ -47,7 +47,7 @@ lazy_static! {
     );
 
     /// 公历节日数据(按月份存储)
-    const SOLAR_FESTIVALS: [&'static str; 12] = [
+    static ref SOLAR_FESTIVALS: [&'static str; 12] = [
         // 1月
         "01#元旦|",
         // 2月 
@@ -115,9 +115,10 @@ lazy_static! {
 }
 
 impl FestivalInfo {
+
     /// 计算节日(包含公历、农历、周历节日)
-    pub fn calc_festivals(&self, lunar_day: &LunarDay) -> FestivalInfo {
-        let mut festivals = FestivalInfo::default();
+    pub fn calc_festivals(&mut self, lunar_day: &LunarDay) -> FestivalInfo {
+        // let mut festivals = FestivalInfo::default();
         
         // 1. 处理公历节日
         self.add_solar_festivals(lunar_day);
@@ -128,11 +129,11 @@ impl FestivalInfo {
         // 3. 处理周历节日
         self.add_week_festivals(lunar_day);
 
-        festivals
+        self.clone()
     }
 
     /// 添加公历节日
-    fn add_solar_festivals(&self, date: &LunarDay, festivals: &mut FestivalInfo) {
+    fn add_solar_festivals(&mut self, date: &LunarDay) {
         // 获取月日字符串,如"0102"表示1月2日
         let md = format!("{:02}{:02}", date.day.m, date.day.d);
         
@@ -186,7 +187,7 @@ impl FestivalInfo {
     }
 
     /// 添加周历节日
-    fn add_week_festivals(&self, lunar: &LunarDay) {
+    fn add_week_festivals(&mut self, lunar: &LunarDay) {
         // 计算周序号
         let mut w = lunar.day.weeki; 
         if lunar.day.week >= lunar.day.week0 {
@@ -201,7 +202,7 @@ impl FestivalInfo {
         
         // 生成查找键
         // 格式:"0523"表示5月第2周周3
-        let m0 = format!("{:02}", lunar.day.day.m); // 补零的月份
+        let m0 = format!("{:02}", lunar.day.m); // 补零的月份
         let w_key = format!("{}{}{}", m0, w, lunar.day.week);
         let w2_key = format!("{}{}{}", m0, w2, lunar.day.week);
 
@@ -224,7 +225,7 @@ impl FestivalInfo {
     }
 
     /// 添加农历节日
-    fn add_lunar_festivals(&self, lunar_day: &LunarDay, festivals: &mut FestivalInfo) {
+    fn add_lunar_festivals(&mut self, lunar_day: &LunarDay) {
         // 农历日期字符串,如"正月初一"
         let lunar_date = format!("{}{}", lunar_day.lunar_month_name, lunar_day.lunar_day_name);
         
@@ -367,10 +368,11 @@ impl FestivalInfo {
 
         // 计算三伏
         // let day_gz = self.calc_day_gan_zhi(solar_date.timestamp() as f64);
-        let gz1 = &lunar.gan_zhi_day[0..1];  // 天干
-        let gz2 = &lunar.gan_zhi_day[1..2];  // 地支
+        let mut chars = lunar_day.gan_zhi_day.chars();
+        let gz1 = chars.next().unwrap().to_string();  // 天干
+        let gz2 = chars.next().unwrap().to_string();  // 地支
         
-        if gz1 == "庚" {
+        if *gz1 == *"庚" {
             if lunar_day.cur_xz >= 20 && lunar_day.cur_xz < 30 {
                 self.add_festival("I", "初伏");
             } else if lunar_day.cur_xz >= 30 && lunar_day.cur_xz < 40 {
@@ -381,10 +383,10 @@ impl FestivalInfo {
         }
 
         // 入梅、出梅
-        if gz1 == "丙" && lunar_day.cur_mz >= 0 && lunar_day.cur_mz < 10 {
+        if *gz1 == *"丙" && lunar_day.cur_mz >= 0 && lunar_day.cur_mz < 10 {
             self.add_festival("I", "入梅");
         }
-        if gz2 == "未" && lunar_day.cur_xs >= 0 && lunar_day.cur_xs < 12 {
+        if *gz2 == *"未" && lunar_day.cur_xs >= 0 && lunar_day.cur_xs < 12 {
             self.add_festival("I", "出梅");
         }
     }

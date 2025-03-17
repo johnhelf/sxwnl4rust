@@ -1,5 +1,6 @@
-jduse crate::funcs::eph::dt_t;
-use crate::funcs::lunar::{LunarYear,yue_ming};
+use crate::eph::delta_t::dt_t;
+use crate::lunar::lunar::{YUE_MING};
+use crate::eph::xl::XL;
 
 
 /// 实朔实气计算器
@@ -11,10 +12,10 @@ pub struct SolarTerms {
     sb: String,  
     /// 气修正表
     qb: String,
-    /// 朔直线拟合参数
-    suo_kb: [(f64, f64); 13],  
-    /// 气直线拟合参数
-    qi_kb: [(f64, f64); 30],
+    // /// 朔直线拟合参数
+    // suo_kb: [(f64, f64); 13],  
+    // /// 气直线拟合参数
+    // qi_kb: [(f64, f64); 30],
 
     /// 闰月位置
     pub leap: i32,
@@ -53,7 +54,7 @@ impl SolarTerms {
     ];
 
     /// 气直线拟合参数
-    pub const QI_KB: [(f64, f64); 46] = [
+    pub const QI_KB: [(f64, f64); 36] = [
         // 节气时间点(儒略日), 合朔周期(天),        对应历法及误差说明
         (1640650.479938, 15.21842500),  // -221-11-09 h=0.01709 古历·秦汉
         (1642476.703182, 15.21874996),  // -216-11-09 h=0.01557 古历·秦汉
@@ -121,7 +122,7 @@ impl SolarTerms {
             + 334116.0 * (4.67 + 628.307585 * t).cos()
             + 2061.0 * (2.678 + 628.3076 * t).cos() * t) / v / 10000000.0;
 
-        let mut l = 48950621.66 + 6283319653.318 * t + 53.0 * t * t 
+        let l = 48950621.66 + 6283319653.318 * t + 53.0 * t * t 
             + 334166.0 * (4.669257 + 628.307585 * t).cos() // 地球椭圆轨道级数展开
             + 3489.0 * (4.6261 + 1256.61517 * t).cos()
             + 2060.6 * (2.67823 + 628.307585 * t).cos() * t  // 一次泊松项
@@ -136,12 +137,12 @@ impl SolarTerms {
     /// 较高精度气计算 
     pub fn qi_high(&self, w: f64) -> f64 {
         // 使用天文算法计算节气时刻
-        let mut t = self.solar.sun_lon_t2(w) * 36525.0;
+        let mut t = XL::s_alon_t2(w) * 36525.0;
         t = t - dt_t(t) + 8.0 / 24.0;
         
         let v = ((t + 0.5) % 1.0) * 86400.0;
         if v < 1200.0 || v > 86400.0 - 1200.0 {
-            t = self.solar.sun_lon_t(w) * 36525.0 - dt_t(t) + 8.0 / 24.0;
+            t = XL::s_alon_t(w) * 36525.0 - dt_t(t) + 8.0 / 24.0;
         }
         
         t
@@ -150,12 +151,12 @@ impl SolarTerms {
     /// 较高精度朔计算
     pub fn so_high(&self, w: f64) -> f64 {
         // 使用天文算法计算月相时刻  
-        let mut t = self.lunar.moon_lon_t2(w) * 36525.0;
+        let mut t = XL::ms_alon_t2(w) * 36525.0;
         t = t - dt_t(t) + 8.0 / 24.0;
         
         let v = ((t + 0.5) % 1.0) * 86400.0;
         if v < 1800.0 || v > 86400.0 - 1800.0 {
-            t = self.lunar.moon_lon_t(w) * 36525.0 - dt_t(t) + 8.0 / 24.0;
+            t = XL::ms_alon_t(w) * 36525.0 - dt_t(t) + 8.0 / 24.0;
         }
         
         t
@@ -180,10 +181,10 @@ impl SolarTerms {
         jd += 2451545.0;
 
         // 获取拟合参数
-        let (kb, pc) = if is_solar_term {
-            (&Self::QI_KB, 7.0)
+        let (kb, pc): (&[(f64, f64)], f64) = if is_solar_term {
+            (&Self::QI_KB[..], 7.0)
         } else {
-            (&Self::SUO_KB, 14.0)
+            (&Self::SUO_KB[..], 14.0)
         };
 
         // 计算边界值
@@ -261,8 +262,8 @@ impl SolarTerms {
 
     /// 农历排月序计算,定出农历年历
     /// 可计算的范围：两个冬至之间(冬至一 <= d < 冬至二)
-    pub fn calc_year(&self, jd: f64) -> LunarYear {
-        let mut year = LunarYear::default();
+    pub fn calc_year(&mut self, jd: f64){
+        // let mut year = LunarYear::default();
         
         // 该年的节气计算
         // 355是2000.12冬至,得到较靠近jd的冬至估计值
@@ -275,70 +276,69 @@ impl SolarTerms {
 
         // 25个节气时刻(北京时),从冬至开始到下一个冬至以后
         for i in 0..25 {
-            year.solar_terms.push(self.calc(w + 15.2184 * i as f64, true));
+            self.solar_terms.push(self.calc(w + 15.2184 * i as f64, true));
         }
 
         // 补算前两个节气,确保一年中所有月份的"气"都被计算
-        year.solar_terms.push(self.calc(w - 15.2, true)); // pe1
-        year.solar_terms.push(self.calc(w - 30.4, true)); // pe2
+        self.solar_terms.push(self.calc(w - 15.2, true)); // pe1
+        self.solar_terms.push(self.calc(w - 30.4, true)); // pe2
 
         // 计算较靠近冬至的朔日
-        let mut new_moon = self.calc(year.solar_terms[0], false);
-        if new_moon > year.solar_terms[0] {
+        let mut new_moon = self.calc(self.solar_terms[0], false);
+        if new_moon > self.solar_terms[0] {
             new_moon -= 29.53;
         }
 
         // 计算该年所有朔日(共15个月)
         for i in 0..15 {
-            year.new_moons.push(
+            self.new_moons.push(
                 self.calc(new_moon + 29.5306 * i as f64, false)
             );
         }
 
         // 月大小计算
-        year.leap = 0;
+        self.leap = 0;
         for i in 0..14 {
             // 月大小
-            year.month_days.push(
-                (year.new_moons[i+1] - year.new_moons[i]) as i32
+            self.month_days.push(
+                (self.new_moons[i+1] - self.new_moons[i]) as i32
             );
             
             // 月序初始化 
-            year.month_names.push(i.to_string());
+            self.month_names.push(i.to_string());
         }
 
         // -721年至-104年的后九月及月建问题处理
-        let year_num = ((year.solar_terms[0] + 10.0 + 180.0) / 365.2422).floor() as i32 + 2000;
+        let year_num = ((self.solar_terms[0] + 10.0 + 180.0) / 365.2422).floor() as i32 + 2000;
         if year_num >= -721 && year_num <= -104 {
-            self.fix_ancient_months(year_num, &mut year);
-            return year;
+            self.fix_ancient_months(year_num);
+            return ;
         }
 
         // 无中气置闰法确定闰月
         // 第13月的月末没超过冬至,说明该年有13个月
-        if year.new_moons[13] <= year.solar_terms[24] {
+        if self.new_moons[13] <= self.solar_terms[24] {
             // 在13个月中找第1个没有中气的月份
             let mut i = 1;
-            while year.new_moons[i+1] > year.solar_terms[2*i] && i < 13 {
+            while self.new_moons[i+1] > self.solar_terms[2*i] && i < 13 {
                 i += 1;
             }
-            year.leap = i;
+            self.leap = i as i32;
             
             // 更新月名
             for j in i..14 {
-                let month_num = year.month_names[j].parse::<i32>().unwrap();
-                year.month_names[j] = (month_num - 1).to_string();
+                let month_num = self.month_names[j].parse::<i32>().unwrap();
+                self.month_names[j] = (month_num - 1).to_string();
             }
         }
 
         // 月建名称转换
-        self.convert_month_names(year_num, &mut year);
+        self.convert_month_names(); //year_num
 
-        year
     }
 
     /// 修正古代历法月名(-721年至-104年)
-    fn fix_ancient_months(&self, year: i32, ly: &mut LunarYear) {
+    fn fix_ancient_months(&mut self, year: i32) {
         let mut ns = Vec::new();
         
         // 计算三年的历元
@@ -347,26 +347,32 @@ impl SolarTerms {
             
             if y >= -721 {
                 // 春秋历,ly为-722.12.17
-                ns.push(self.calc(1457698.0 - 2451545.0 + 
-                    ((0.342 + (y + 721) as f64 * 12.368422).floor() * 29.5306), false));
-                ns.push("十三".to_string());
-                ns.push(2);
+                ns.push(CalendarParam {
+                    jd: self.calc(1457698.0 - 2451545.0 + 
+                        ((0.342 + (y + 721) as f64 * 12.368422).floor() * 29.5306), false),
+                    month_name: "十三".to_string(),
+                    month_index: 2,
+                });
             }
             
             if y >= -479 {
                 // 战国历,ly为-480.12.11  
-                ns.push(self.calc(1546083.0 - 2451545.0 +
-                    ((0.500 + (y + 479) as f64 * 12.368422).floor() * 29.5306), false));
-                ns.push("十三".to_string());
-                ns.push(2);
+                ns.push(CalendarParam {
+                    jd: self.calc(1546083.0 - 2451545.0 +
+                        ((0.500 + (y + 479) as f64 * 12.368422).floor() * 29.5306), false),
+                    month_name: "十三".to_string(),
+                    month_index: 2,
+                });
             }
             
             if y >= -220 {
                 // 秦汉历,ly为-221.10.31
-                ns.push(self.calc(1640641.0 - 2451545.0 +
-                    ((0.866 + (y + 220) as f64 * 12.369000).floor() * 29.5306), false));
-                ns.push("后九".to_string());
-                ns.push(11);
+                ns.push(CalendarParam {
+                    jd: self.calc(1640641.0 - 2451545.0 +
+                        ((0.866 + (y + 220) as f64 * 12.369000).floor() * 29.5306), false),
+                    month_name: "后九".to_string(),
+                    month_index: 11,
+                });
             }
         }
 
@@ -374,63 +380,63 @@ impl SolarTerms {
         for i in 0..14 {
             // 找到对应的历法参数
             let mut idx = 2;
-            while idx >= 0 && ly.new_moons[i] < ns[idx] {
+            while self.new_moons[i] < ns[idx].jd {
                 idx -= 1; 
             }
 
             // 计算月积数
-            let acc = ((ly.new_moons[i] - ns[idx] + 15.0) / 29.5306).floor();
+            let acc = ((self.new_moons[i] - ns[idx].jd + 15.0) / 29.5306).floor();
             
             if acc < 12.0 {
                 // 正常月
-                let month_num = ((acc as i32 + ns[idx+6]) % 12) as usize;
-                ly.month_names[i] = MONTH_NAMES[month_num].to_string();
+                let month_num = ((acc as i32 + ns[idx].month_index) % 12) as usize;
+                self.month_names[i] = YUE_MING[month_num].to_string();
             } else {
                 // 闰月
-                ly.month_names[i] = ns[idx+3].clone();
+                self.month_names[i] = ns[idx].month_name.clone();
             }
         }
     }
 
 
-    fn convert_month_names(&self, year: &mut LunarYear) {
+    fn convert_month_names(&mut self) {
         
         // 无中气置闰法确定闰月
         // 第13月的月末没超过冬至(不含冬至),说明该年有13个月
-        if year.new_moons[13] <= year.solar_terms[24] {
+        if self.new_moons[13] <= self.solar_terms[24] {
             // 在13个月中找第1个没有中气的月份
             let mut i = 1;
-            while i < 13 && year.new_moons[i+1] > year.solar_terms[2*i] {
+            while i < 13 && self.new_moons[i+1] > self.solar_terms[2*i] {
                 i += 1;
             }
-            year.leap = i;
+            self.leap = i as i32;
             
             // 更新月序
             for j in i..14 {
-                let v = year.month_names[j].parse::<i32>().unwrap();
-                year.month_names[j] = (v - 1).to_string();
+                let v = self.month_names[j].parse::<i32>().unwrap();
+                self.month_names[j] = (v - 1).to_string();
             }
         }
 
         // 转换各月名称
         for i in 0..14 {
             // Dm为初一的儒略日,v2为月建序号
-            let dm = year.new_moons[i] + 2451545.0;
-            let v2 = year.month_names[i].parse::<i32>().unwrap();
+            let dm = self.new_moons[i] + 2451545.0;
+            let v2 = self.month_names[i].parse::<i32>().unwrap();
             
             // 根据月建序号获取默认月名称
-            let mut mc = yue_ming[v2 as usize % 12].to_string();
+            let mut mc = YUE_MING[v2 as usize % 12].to_string();
             
             // 根据不同历法时期调整月名称
             if dm >= 1724360.0 && dm <= 1729794.0 {
                 // 8.01.15至23.12.02 建子为十二,其它顺推
-                mc = yue_ming[((v2 + 1) % 12) as usize].to_string();
+                mc = YUE_MING[((v2 + 1) % 12) as usize].to_string();
             } else if dm >= 1807724.0 && dm <= 1808699.0 {
                 // 237.04.12至239.12.13 建子为十二,其它顺推  
-                mc = yue_ming[((v2 + 1) % 12) as usize].to_string();
+                mc = YUE_MING[((v2 + 1) % 12) as usize].to_string();
             } else if dm >= 1999349.0 && dm <= 1999467.0 {
                 // 761.12.02至762.03.30 建子为正月,其它顺推
-                mc = yue_ming[((v2 + 2) % 12) as usize].to_string();
+                mc = YUE_MING[((v2 + 2) % 12) as usize].to_string();
             } else if dm >= 1973067.0 && dm <= 1977052.0 {
                 // 689.12.18至700.11.15 建子为正月,建寅为一月,其它不变
                 if v2 % 12 == 0 {
@@ -447,7 +453,7 @@ impl SolarTerms {
                 mc = "拾贰".to_string();
             }
 
-            year.month_names[i] = mc;
+            self.month_names[i] = mc;
         }
     }
 
@@ -662,11 +668,30 @@ impl SolarTerms {
 
     /// 初始化朔气修正表
     pub fn new() -> Self {
+    //                   /// 闰月位置
+    // pub leap: i32,
+    // /// 各月名称
+    // pub month_names: Vec<String>,
+    // /// 中气表,其中.liqiu是节气立秋的儒略日,计算三伏时用到
+    // pub solar_terms: Vec<f64>,
+    // /// 合朔表
+    // pub new_moons: Vec<f64>,
+    // /// 各月大小
+    // pub month_days: Vec<i32>,
+    // /// 年计数
+    // pub year_counts: Vec<i32>,
         let mut st = SolarTerms {
             sb: String::new(),
             qb: String::new(),
-            suo_kb: [(0.0, 0.0); 13],
-            qi_kb: [(0.0, 0.0); 30]
+            // suo_kb: [(0.0, 0.0); 13],
+            // qi_kb: [(0.0, 0.0); 30],
+            leap: 0,
+            month_names: Vec::new(),
+            solar_terms: Vec::new(),
+            new_moons: Vec::new(),
+            month_days: Vec::new(),
+            year_counts: Vec::new(),
+
         };
 
         // 解压朔日修正表
@@ -677,4 +702,11 @@ impl SolarTerms {
         st
     }
 
+}
+
+// 定义一个结构体来存储历法参数
+struct CalendarParam {
+    jd: f64,         // 儒略日
+    month_name: String, // 月名
+    month_index: i32,   // 月索引
 }

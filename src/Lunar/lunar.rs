@@ -1,10 +1,13 @@
-use crate::eph::{self, J2000, PI, dt_t, solar};
-use chrono::{DateTime, Datelike, TimeZone, Utc};
+use crate::eph::eph_base::{J2000, PI,PI2,pty_zty2};
+use chrono::{DateTime, Datelike, TimeZone, Utc,Timelike};
 // use lazy_static::lazy_static;
-use crate::jd::JD;
-use crate::Lunar::nianhao::{NianHaoInfo, get_nian_hao};
+use crate::eph::delta_t::dt_t;
+use crate::eph::jd::JD;
+use crate::lunar::nian_hao::{get_nian_hao};
 use crate::eph::xl::XL;
 use crate::funcs::festival::FestivalInfo;
+use crate::lunar::solar_terms::SolarTerms;
+use std::array;
 
 /// 农历年份信息
 #[derive(Default)]
@@ -23,7 +26,7 @@ pub struct LunarYear {
     pub year_count: Vec<i32>,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Day {
     pub d0: i32,    //儒略日,北京时12:00
     pub di: i32,    //公历月内日序数
@@ -38,11 +41,11 @@ pub struct Day {
 }
 
 /// 农历日期信息
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct LunarDay {
     pub day: Day,
 
-    pub Ldi: i32, //距农历月首的编移量,0对应初一
+    pub ldi: i32, //距农历月首的编移量,0对应初一
 
     /// 距冬至天数
     pub cur_dz: i32,
@@ -118,7 +121,7 @@ pub struct LunarDay {
 pub struct LunarSimpleDay {
     pub day: Day,
 
-    pub Ldi: i32, //距农历月首的编移量,0对应初一
+    pub ldi: i32, //距农历月首的编移量,0对应初一
 
     /// 农历日名称(如:初一)
     pub lunar_day_name: String,
@@ -166,7 +169,7 @@ pub struct LunarSimpleDay {
 // }
 
 /// 回历日期信息
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct HuiLiDay {
     /// 回历年
     pub year: i32,
@@ -199,6 +202,7 @@ pub struct JulianDate {
 }
 
 /// 农历计算器
+#[derive(Default,Debug)]
 pub struct LunarCalendar {
     pub gan: String,
     pub zhi: String,
@@ -206,22 +210,22 @@ pub struct LunarCalendar {
     pub nian_hao: String,
 }
 
-pub const gan: [&'static str; 10] = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
-pub const zhi: [&'static str; 12] = [
+pub const GAN: [&'static str; 10] = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
+pub const ZHI: [&'static str; 12] = [
     "子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥",
 ];
-pub const sheng_xiao: [&'static str; 12] = [
+pub const SHENG_XIAO: [&'static str; 12] = [
     "鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪",
 ];
-pub const constellation: [&'static str; 12] = [
+pub const CONSTELLATION: [&'static str; 12] = [
     "摩羯", "水瓶", "双鱼", "白羊", "金牛", "双子", "巨蟹", "狮子", "处女", "天秤", "天蝎", "射手",
 ];
-pub const moon_phase_names: [&'static str; 4] = ["朔", "上弦", "望", "下弦"];
-pub const jie_qi_names: [&'static str; 24] = [
+pub const MOON_PHASE_NAMES: [&'static str; 4] = ["朔", "上弦", "望", "下弦"];
+pub const JIE_QI_NAMES: [&'static str; 24] = [
     "冬至", "小寒", "大寒", "立春", "雨水", "惊蛰", "春分", "清明", "谷雨", "立夏", "小满", "芒种",
     "夏至", "小暑", "大暑", "立秋", "处暑", "白露", "秋分", "寒露", "霜降", "立冬", "小雪", "大雪",
 ];
-pub const yue_ming: [&str; 12] = [
+pub const YUE_MING: [&str; 12] = [
     "十一", "十二", "正", "二", "三", "四", "五", "六", "七", "八", "九", "十",
 ];
 
@@ -251,7 +255,7 @@ pub struct BaZiInfo {
     /// 当前时辰
     pub cur_hour: String,
     /// 全天时辰表
-    pub time_table: [&str; 13],
+    pub time_table: [String; 13],
 }
 
 /// 八字信息
@@ -273,39 +277,39 @@ pub struct BaZiDetail {
 
 impl LunarCalendar {
     /// 创建农历计算器实例
-    pub fn new() -> Self {
-        // Self {
-        //     gan: ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"],
-        //     zhi: ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"],
-        //     sheng_xiao: ["鼠","牛","虎","兔","龙","蛇","马","羊","猴","鸡","狗","猪"],
-        //     constellation: ["摩羯","水瓶","双鱼","白羊","金牛","双子",
-        //                   "巨蟹","狮子","处女","天秤","天蝎","射手"],
-        //     moon_phase_names: ["朔","上弦","望","下弦"],
-        //     jie_qi_names: ["冬至","小寒","大寒","立春","雨水","惊蛰",
-        //                   "春分","清明","谷雨","立夏","小满","芒种",
-        //                   "夏至","小暑","大暑","立秋","处暑","白露",
-        //                   "秋分","寒露","霜降","立冬","小雪","大雪"],
-        // }
-    }
+    // pub fn new() -> Self {
+    //     Self {
+    //     //     gan: ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"],
+    //     //     zhi: ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"],
+    //     //     sheng_xiao: ["鼠","牛","虎","兔","龙","蛇","马","羊","猴","鸡","狗","猪"],
+    //     //     constellation: ["摩羯","水瓶","双鱼","白羊","金牛","双子",
+    //     //                   "巨蟹","狮子","处女","天秤","天蝎","射手"],
+    //     //     moon_phase_names: ["朔","上弦","望","下弦"],
+    //     //     jie_qi_names: ["冬至","小寒","大寒","立春","雨水","惊蛰",
+    //     //                   "春分","清明","谷雨","立夏","小满","芒种",
+    //     //                   "夏至","小暑","大暑","立秋","处暑","白露",
+    //     //                   "秋分","寒露","霜降","立冬","小雪","大雪"],
+    //     }
+    // }
 
     // 精确节气计算
-    fn qi_accurate(&self, w: f64) -> f64 {
+    pub fn qi_accurate(&self, w: f64) -> f64 { //w 参数是节气的黄经值（太阳黄经
         // 调用天文算法计算节气时刻
-        let t = self.solar.sun_lon_t(w) * 36525.0;
+        let t = XL::s_alon_t(w) * 36525.0;
         // 转换为UT1时间
-        t - self.delta_t(t) + 8.0 / 24.0 // 转为北京时间(+8h)
+        t - dt_t(t) + 8.0 / 24.0 // 转为北京时间(+8h)
     }
 
     // 精确朔望计算
-    fn so_accurate(&self, w: f64) -> f64 {
+    pub fn so_accurate(&self, w: f64) -> f64 {
         // 调用天文算法计算月相时刻
-        let t = self.lunar.moon_lon_t(w) * 36525.0;
+        let t = XL::m_lon_t(w) * 36525.0;
         // 转换为UT1时间
-        t - self.delta_t(t) + 8.0 / 24.0 // 转为北京时间(+8h)
+        t - dt_t(t) + 8.0 / 24.0 // 转为北京时间(+8h)
     }
 
     // 寻找最近的节气
-    fn qi_accurate2(&self, jd: f64) -> f64 {
+    pub fn qi_accurate2(&self, jd: f64) -> f64 {
         let d = PI / 12.0; // 每个节气间隔15度
 
         // 估算节气时刻
@@ -325,7 +329,7 @@ impl LunarCalendar {
     }
 
     // 寻找最近的朔望
-    fn so_accurate2(&self, jd: f64) -> f64 {
+    pub fn so_accurate2(&self, jd: f64) -> f64 {
         // 估算朔望时刻
         self.so_accurate(((jd + 8.0) / 29.5306).floor() * 2.0 * PI)
     }
@@ -365,10 +369,16 @@ impl LunarCalendar {
     /// * `month` - 公历月份
     /// # Returns
     /// * `LunarMonth` - 月历信息
-    pub fn yue_li_calc(&self, year: i32, month: i32) -> LunarMonth {
+    pub fn yue_li_calc(&mut self, year: i32, month: i32) -> LunarMonth {
         // 基本参数计算
         let mut jd = JD::new();
-        jd.jd(year, month, 1, 12, 0, 0.1);
+        // jd.jd(year, month, 1, 12, 0, 0.1);
+        jd.year = year;
+        jd.month = month;
+        jd.day = 1;
+        jd.hour = 12.0;
+        jd.minute = 0.0;
+        jd.second = 0.1;
         // jd.h = 12;
         // jd.m = 0;
         // jd.s = 0.1;
@@ -377,19 +387,19 @@ impl LunarCalendar {
         // jd.d = 1;
 
         // 计算月首的儒略日
-        let bd0 = jd.to_jd() as i32 - J2000; //公历月首,中午
+        let bd0 = jd.to_jd() as i32 - J2000 as i32; //公历月首,中午
 
         // 计算本月天数
         if month == 12 {
-            jd.y = year + 1;
-            jd.m = 1;
+            jd.year = year + 1;
+            jd.month = 1;
         } else {
-            jd.m = month + 1;
+            jd.month = month + 1;
         }
-        let bdn = jd.to_jd() as i32 - J2000 - bd0; //本月天数(公历)
+        let bdn = jd.to_jd() as i32 - J2000 as i32 - bd0; //本月天数(公历)
 
         // 计算月首星期
-        let w0 = (bd0 + J2000 + 1 + 7000000) % 7;
+        let w0 = (bd0 + J2000 as i32 + 1 + 7000000) % 7;
 
         // 生成LunarMonth结构
         let mut lunar_month = LunarMonth {
@@ -401,10 +411,10 @@ impl LunarCalendar {
 
         // 计算该年的农历信息
         let cycle_year = year - 1984 + 12000;
-        self.gan = gan[cycle_year % 10];
-        self.zhi = zhi[cycle_year % 12];
-        let gan_zhi = format!("{}{}", self.gan, self.zhi);
-        self.sheng_xiao = sheng_xiao[cycle_year % 12].to_string();
+        self.gan = GAN[(cycle_year % 10) as usize].to_string();
+        self.zhi = ZHI[(cycle_year % 12) as usize].to_string();
+        // let gan_zhi = format!("{}{}", self.gan, self.zhi);
+        self.sheng_xiao = SHENG_XIAO[(cycle_year % 12) as usize].to_string();
         self.nian_hao = get_nian_hao(year);
 
         // 初始化农历历法计算器
@@ -424,47 +434,47 @@ impl LunarCalendar {
             day.day.week = (w0 + i) % 7;
             day.day.weeki = (w0 + i) / 7;
             day.day.weekn = (w0 + bdn - 1) / 7 + 1;
-            jd.set_from_jd(jd as f64 + J2000);
+            jd.set_from_jd(day.day.d0 as f64 + J2000);
             day.day.d = jd.day;
 
             // 2. 农历信息
             // 如果超出计算农历范围则重新计算
             if ssq.solar_terms.is_empty()
-                || day.day.d0 < ssq.solar_terms[0]
-                || day.day.d0 >= ssq.solar_terms[24]
+                || (day.day.d0 as f64) < ssq.solar_terms[0]
+                || (day.day.d0 as f64) >= ssq.solar_terms[24]
             {
                 ssq.calc_year(day.day.d0 as f64);
             }
 
             // 找农历月
-            let mut mk = ((day.day.d0 - ssq.HS[0]) / 30) as usize;
-            if mk < 13 && ssq.HS[mk + 1] <= day.day.d0 {
+            let mut mk = ((day.day.d0 as f64 - ssq.new_moons[0]) / 30.0) as usize;
+            if mk < 13 && ssq.new_moons[mk + 1] <= day.day.d0  as f64 {
                 mk += 1;
             }
 
             // 农历月内日期
-            day.ldi = day.day.d0 - ssq.HS[mk];
-            day.lunar_day_name = Self::RI_MC[day.ldi as usize].to_string();
+            day.ldi = (day.day.d0 as f64 - ssq.new_moons[mk]) as i32;
+            day.lunar_day_name = RI_MC[day.ldi as usize].to_string();
 
             // 距节气天数
-            day.cur_dz = day.day.d0 - ssq.ZQ[0]; // 距冬至天数
-            day.cur_xz = day.day.d0 - ssq.ZQ[12]; // 距夏至天数
-            day.cur_lq = day.day.d0 - ssq.ZQ[15]; // 距立秋天数  
-            day.cur_mz = day.day.d0 - ssq.ZQ[11]; // 距芒种天数
-            day.cur_xs = day.day.d0 - ssq.ZQ[13]; // 距小暑天数
+            day.cur_dz = ((day.day.d0 as f64) - ssq.solar_terms[0]) as i32; // 距冬至天数
+            day.cur_xz = ((day.day.d0 as f64) - ssq.solar_terms[12]) as i32; // 距夏至天数
+            day.cur_lq = ((day.day.d0 as f64) - ssq.solar_terms[15]) as i32; // 距立秋天数  
+            day.cur_mz = ((day.day.d0 as f64) - ssq.solar_terms[11]) as i32; // 距芒种天数
+            day.cur_xs = ((day.day.d0 as f64) - ssq.solar_terms[13]) as i32; // 距小暑天数
 
             // 月的信息(月名称、大小及闰状况)
-            if day.day.d0 == ssq.HS[mk] || i == 0 {
+            if day.day.d0 == ssq.new_moons[mk] as i32 || i == 0 {
                 day.lunar_month_name = ssq.month_names[mk].clone();
                 day.lunar_month_days = ssq.month_days[mk];
-                day.is_leap_month = ssq.leap == mk;
+                day.is_leap_month = ssq.leap == mk as i32;
                 day.next_month_name = if mk < 13 {
                     ssq.month_names[mk + 1].clone()
                 } else {
                     "未知".to_string()
                 };
             } else {
-                let prev = &lunar_month.days_info[i - 1];
+                let prev = &lunar_month.days_info[(i - 1) as usize];
                 day.lunar_month_name = prev.lunar_month_name.clone();
                 day.lunar_month_days = prev.lunar_month_days;
                 day.is_leap_month = prev.is_leap_month;
@@ -472,7 +482,7 @@ impl LunarCalendar {
             }
 
             // 计算节气
-            let qk = ((day.day.d0 as f64 - ssq.solar_terms[0] - 7.0) / 15.2184) as i32; // 注意:改为i32
+            let mut qk = ((day.day.d0 as f64 - ssq.solar_terms[0] - 7.0) / 15.2184) as i32; // 注意:改为i32
             if qk < 23 && day.day.d0 as f64 >= ssq.solar_terms[qk as usize + 1] {
                 qk += 1; // 增加这一行,与JS版本保持一致
             }
@@ -480,7 +490,7 @@ impl LunarCalendar {
             // 判断是否恰好是节气日
             if (day.day.d0 as f64 - ssq.solar_terms[qk as usize]).abs() < 0.5 {
                 // 允许0.5天误差
-                day.jie_qi = jie_qi_names[qk as usize].to_string();
+                day.jie_qi = JIE_QI_NAMES[qk as usize].to_string();
             } else {
                 day.jie_qi = String::new(); // 不是节气日则清空
             }
@@ -500,7 +510,7 @@ impl LunarCalendar {
             d = ssq.new_moons[2]; // 一般第3个月为春节
             // 找春节
             for j in 0..14 {
-                if ssq.month_names[j] != "正" || (ssq.leap == j && j > 0) {
+                if ssq.month_names[j] != "正" || (ssq.leap == j as i32 && j > 0) {
                     continue;
                 }
                 d = ssq.new_moons[j];
@@ -516,13 +526,13 @@ impl LunarCalendar {
 
             // 干支纪年
             let d1 = day.lunar_year + 12000;
-            day.gan_zhi_year = format!("{}{}", gan[d1 as usize % 10], zhi[d1 as usize % 12]);
+            day.gan_zhi_year = format!("{}{}", GAN[d1 as usize % 10], ZHI[d1 as usize % 12]);
 
             let d2 = day.lunar_year0 + 12000;
-            day.gan_zhi_year1 = format!("{}{}", gan[d2 as usize % 10], zhi[d2 as usize % 12]);
+            day.gan_zhi_year1 = format!("{}{}", GAN[d2 as usize % 10], ZHI[d2 as usize % 12]);
 
             // 黄帝纪年
-            day.lunar_year1 = day.lunar_year0 + 1984 + 2698;
+            day.lunar_year1 = (day.lunar_year0 + 1984 + 2698).to_string();
 
             // 纪月处理
             // 1998年12月7(大雪)开始连续进行节气计数,0为甲子
@@ -535,24 +545,25 @@ impl LunarCalendar {
             d = mk as f64 + ((ssq.solar_terms[12] + 390.0) / 365.2422).floor() * 12.0 + 900000.0;
 
             day.lunar_month = (d as usize % 12) as i32;
-            day.gan_zhi_month = format!("{}{}", gan[(d as usize % 10)], zhi[(d as usize % 12)]);
+            day.gan_zhi_month = format!("{}{}", GAN[d as usize % 10], ZHI[d as usize % 12]);
 
             // 纪日,2000年1月7日起算
             d = day.day.d0 as f64 - 6.0 + 9000000.0;
-            day.gan_zhi_day = format!("{}{}", gan[(d as usize % 10)], zhi[(d as usize % 12)]);
+            day.gan_zhi_day = format!("{}{}", GAN[d as usize % 10], ZHI[d as usize % 12]);
 
             // 星座
             mk = ((day.day.d0 as f64 - ssq.solar_terms[0] - 15.0) / 30.43685) as usize;
             if mk < 11 && day.day.d0 as f64 >= ssq.solar_terms[2 * mk + 2] {
                 mk += 1;
             }
-            day.constellation = format!("{}座", constellation[(mk + 12) % 12]);
+            day.constellation = format!("{}座", CONSTELLATION[(mk + 12) % 12]);
 
             // 回历
             day.hui_li = Some(self.calc_hui_li(day.day.d0 as f64));
 
+            let mut festival_info = FestivalInfo::default();
             // 节日
-            day.festival = FestivalInfo::calc_festivals(day);
+            day.festival = festival_info.calc_festivals(&day);
 
             lunar_month.days_info.push(day);
         } //for
@@ -561,7 +572,7 @@ impl LunarCalendar {
 
         let jd2 = bd0 as f64 + dt_t(bd0 as f64) - 8.0 / 24.0; // 转换为力学时
         // 月相查找
-        let mut w = XL::ms_aLon(jd2 / 36525.0, 10, 3);
+        let mut w = XL::ms_alon(jd2 / 36525.0, 10, 3);
         w = ((w - 0.78) / PI * 2.0).floor() * PI / 2.0;
 
         loop {
@@ -585,10 +596,10 @@ impl LunarCalendar {
             }
 
             // 更新日对象的月相信息
-            let day = &mut lunar_month.days_info[d_int - bd0];
-            day.moon_phase = moon_phase_names[xn].to_string();
+            let mut day = lunar_month.days_info[(d_int - bd0) as usize].clone() as LunarDay;
+            day.moon_phase = MOON_PHASE_NAMES[xn].to_string();
             day.moon_phase_time = d;
-            day.moon_phase_str = JD::time_str(d);
+            day.moon_phase_str = jd.time_str(d);
 
             // 相邻日期超出本月则结束
             if d_int + 5 >= bd0 + bdn {
@@ -621,10 +632,10 @@ impl LunarCalendar {
             }
 
             // 更新日对象的节气信息
-            let day = &mut lunar_month.days_info[d_int - bd0];
-            day.jie_qi = jie_qi_names[xn].to_string();
+            let mut day = lunar_month.days_info[(d_int - bd0) as usize].clone() as LunarDay;
+            day.jie_qi = JIE_QI_NAMES[xn].to_string();
             day.jie_qi_time = d;
-            day.jie_qi_str = JD::time_str(d);
+            day.jie_qi_str = jd.time_str(d);
 
             // 相邻日期超出本月则结束
             if d_int + 12 >= bd0 + bdn {
@@ -648,14 +659,20 @@ impl LunarCalendar {
 
         // 2. 生成儒略日,考虑经度时差
         let mut jd = JD::new();
-        jd.jd(
-            date.year(),
-            date.month(),
-            date.day(),
-            date.hour() as i32,
-            date.minute() as i32,
-            date.second() as f64,
-        );
+        jd.year = date.year();
+        jd.month = date.month() as i32;
+        jd.day = date.day() as i32;
+        jd.hour = date.hour() as f64;
+        jd.minute = date.minute() as f64;
+        jd.second = date.second() as f64;
+        // jd.jd(
+        //     date.year(),
+        //     date.month(),
+        //     date.day(),
+        //     date.hour() as i32,
+        //     date.minute() as i32,
+        //     date.second() as f64,
+        // );
 
         // 转换为力学时
         let jde = jd.to_jd() + dt_t(jd.to_jd()) / 24.0;
@@ -665,11 +682,11 @@ impl LunarCalendar {
         let local_jd = bj_time + local_time_offset / 24.0;
 
         // 3. 获取儒略日整数部分作为日期
-        let d0 = local_jd.floor() as i32 - J2000;
+        let d0 = (local_jd.floor() as f64 - J2000).floor() ;
 
         // 4. 构造基础公历信息
         let mut day = LunarDay::default();
-        day.day.d0 = d0;
+        day.day.d0 = d0 as i32;
         day.day.y = date.year();
         day.day.m = date.month() as i32;
         day.day.d = date.day() as i32;
@@ -690,17 +707,17 @@ impl LunarCalendar {
         ssq.calc_year(d0 as f64);
 
         // 4. 计算农历月
-        let mut mk = ((d0 - ssq.HS[0]) / 30) as usize;
-        if mk < 13 && ssq.HS[mk + 1] <= d0 {
+        let mut mk = ((d0 as f64 - ssq.new_moons[0]) / 30.0) as usize;
+        if mk < 13 && ssq.new_moons[mk + 1] <= d0 {
             mk += 1;
         }
 
         // 5. 设置农历信息
-        day.ldi = d0 - ssq.HS[mk];
-        day.lunar_day_name = Self::RI_MC[day.ldi as usize].to_string();
+        day.ldi = (d0 - ssq.new_moons[mk]) as i32;
+        day.lunar_day_name = RI_MC[day.ldi as usize].to_string();
         day.lunar_month_name = ssq.month_names[mk].clone();
         day.lunar_month_days = ssq.month_days[mk];
-        day.is_leap_month = ssq.leap == mk;
+        day.is_leap_month = ssq.leap == (mk as i32);
         day.next_month_name = if mk < 13 {
             ssq.month_names[mk + 1].clone()
         } else {
@@ -708,24 +725,24 @@ impl LunarCalendar {
         };
 
         // 6. 计算距节气天数
-        day.cur_dz = d0 - ssq.ZQ[0]; // 距冬至天数
-        day.cur_xz = d0 - ssq.ZQ[12]; // 距夏至天数
-        day.cur_lq = d0 - ssq.ZQ[15]; // 距立秋天数
-        day.cur_mz = d0 - ssq.ZQ[11]; // 距芒种天数
-        day.cur_xs = d0 - ssq.ZQ[13]; // 距小暑天数
+        day.cur_dz = (d0 - ssq.solar_terms[0]) as i32; // 距冬至天数
+        day.cur_xz = (d0 - ssq.solar_terms[12]) as i32; // 距夏至天数
+        day.cur_lq = (d0 - ssq.solar_terms[15]) as i32; // 距立秋天数
+        day.cur_mz = (d0 - ssq.solar_terms[11]) as i32; // 距芒种天数
+        day.cur_xs = (d0 - ssq.solar_terms[13]) as i32; // 距小暑天数
 
         // 7. 计算干支纪年
-        let tmp = if (d0 as f64) < ssq.ZQ[3] { -365.0 } else { 0.0 };
-        let mut d = ssq.ZQ[3] + tmp + 365.25 * 16.0 - 35.0;
+        let tmp = if (d0 as f64) < ssq.solar_terms[3] { -365.0 } else { 0.0 };
+        let mut d = ssq.solar_terms[3] + tmp + 365.25 * 16.0 - 35.0;
 
         day.lunar_year = (d / 365.2422 + 0.5).floor() as i32;
 
-        d = ssq.HS[2];
+        d = ssq.new_moons[2];
         for j in 0..14 {
-            if ssq.month_names[j] != "正" || (ssq.leap == j && j > 0) {
+            if ssq.month_names[j] != "正" || (ssq.leap == j as i32 && j > 0) {
                 continue;
             }
-            d = ssq.HS[j];
+            d = ssq.new_moons[j];
             if (d0 as f64) < d {
                 d -= 365.0;
                 break;
@@ -737,90 +754,87 @@ impl LunarCalendar {
 
         // 8. 设置干支纪年
         let d1 = day.lunar_year + 12000;
-        day.gan_zhi_year = format!("{}{}", gan[d1 as usize % 10], zhi[d1 as usize % 12]);
+        day.gan_zhi_year = format!("{}{}", GAN[d1 as usize % 10], ZHI[d1 as usize % 12]);
 
         let d2 = day.lunar_year0 + 12000;
-        day.gan_zhi_year1 = format!("{}{}", gan[d2 as usize % 10], zhi[d2 as usize % 12]);
+        day.gan_zhi_year1 = format!("{}{}", GAN[d2 as usize % 10], ZHI[d2 as usize % 12]);
 
         // 9. 设置其他属性
         day.lunar_year1 = format!("{}", day.lunar_year0 + 1984 + 2698);
-        day.sheng_xiao = sheng_xiao[(d2 as usize % 12)].to_string();
+        day.sheng_xiao = SHENG_XIAO[d2 as usize % 12].to_string();
         day.nian_hao = self.get_nian_hao(date.year());
 
         // 10. 计算干支纪月
-        let mut mk = ((d0 as f64 - ssq.ZQ[0]) / 30.43685) as usize;
-        if mk < 12 && d0 as f64 >= ssq.ZQ[2 * mk + 1] {
+        let mut mk = ((d0 as f64 - ssq.solar_terms[0]) / 30.43685) as usize;
+        if mk < 12 && d0 as f64 >= ssq.solar_terms[2 * mk + 1] {
             mk += 1;
         }
 
-        d = mk as f64 + ((ssq.ZQ[12] + 390.0) / 365.2422).floor() * 12.0 + 900000.0;
+        d = mk as f64 + ((ssq.solar_terms[12] + 390.0) / 365.2422).floor() * 12.0 + 900000.0;
         day.lunar_month = (d as usize % 12) as i32;
-        day.gan_zhi_month = format!("{}{}", gan[(d as usize % 10)], zhi[(d as usize % 12)]);
+        day.gan_zhi_month = format!("{}{}", GAN[d as usize % 10], ZHI[d as usize % 12]);
 
         // 11. 计算干支纪日
         d = d0 as f64 - 6.0 + 9000000.0;
-        day.gan_zhi_day = format!("{}{}", gan[(d as usize % 10)], zhi[(d as usize % 12)]);
+        day.gan_zhi_day = format!("{}{}", GAN[d as usize % 10], ZHI[d as usize % 12]);
 
         // 12. 计算星座
-        mk = ((d0 as f64 - ssq.ZQ[0] - 15.0) / 30.43685) as usize;
-        if mk < 11 && d0 as f64 >= ssq.ZQ[2 * mk + 2] {
+        mk = ((d0 as f64 - ssq.solar_terms[0] - 15.0) / 30.43685) as usize;
+        if mk < 11 && d0 as f64 >= ssq.solar_terms[2 * mk + 2] {
             mk += 1;
         }
-        day.constellation = format!("{}座", constellation[(mk + 12) % 12]);
+        day.constellation = format!("{}座", CONSTELLATION[(mk + 12) % 12]);
 
         // 13. 计算回历
         day.hui_li = Some(self.calc_hui_li(d0 as f64));
 
+        let mut festival_info = FestivalInfo::default();
         // 14. 计算节日
-        day.festival = FestivalInfo::calc_festivals(&day);
+        day.festival = festival_info.calc_festivals(&day);
 
         // 在计算节气和月相时使用精确时刻
-        let mk = ((d0 as f64 - ssq.ZQ[0] - 7.0) / 15.2184) as i32;
+        let mk = ((d0 as f64 - ssq.solar_terms[0] - 7.0) / 15.2184) as i32;
         if mk < 23 && local_jd >= ssq.solar_terms[mk as usize + 1] {
             let diff = local_jd - ssq.solar_terms[mk as usize + 1];
             // 如果时间差小于1天,则认为是节气
             if diff.abs() < 1.0 {
-                day.jie_qi = jie_qi_names[mk as usize].to_string();
+                day.jie_qi = JIE_QI_NAMES[mk as usize].to_string();
                 day.jie_qi_time = ssq.solar_terms[mk as usize + 1];
-                day.jie_qi_str = JD::time_str(day.jie_qi_time);
+                day.jie_qi_str = jd.time_str(day.jie_qi_time);
             }
         }
 
-        // 月相同理,使用精确时刻比较
-        let moon_phase = ((local_jd - ssq.new_moons[0]) / 29.53).floor();
-        let phase_time = ssq.new_moons[moon_phase as usize];
+        // // 月相同理,使用精确时刻比较
+        // let moon_phase = ((local_jd - ssq.new_moons[0]) / 29.5306).floor();
+        // let phase_time = ssq.new_moons[moon_phase as usize];
+        // if (local_jd - phase_time).abs() < 1.0 {
+        //     day.moon_phase = MOON_PHASE_NAMES[(moon_phase % 4.0) as usize].to_string();
+        //     day.moon_phase_time = phase_time;
+        //     day.moon_phase_str = jd.time_str(day.moon_phase_time);
+        // }
+
+        // 月相查找 - 使用与 yue_li_calc 相同的算法
+        let jd2 = local_jd + dt_t(local_jd); // 转换为力学时
+        let t = jd2 / 36525.0; // 转换为儒略世纪数
+        let w = XL::ms_alon(t, 10, 3); // 计算月日视黄经差
+        let xn = ((w / PI2 * 4.0 + 4000000.01).floor() as i32 % 4) as usize; // 计算月相序号
+
+        // 设置月相信息
+        day.moon_phase = MOON_PHASE_NAMES[xn].to_string();
+
+        // 计算精确的月相时刻 (可选)
+        // 这里可以使用 so_accurate 方法计算精确的月相时刻
+        // 类似于 yue_li_calc 中的实现
+        let w_phase = ((w - 0.78) / PI * 2.0).floor() * PI / 2.0;
+        let phase_time = self.so_accurate(w_phase);
         if (local_jd - phase_time).abs() < 1.0 {
-            day.moon_phase = moon_phase_names[(moon_phase % 4.0) as usize].to_string();
             day.moon_phase_time = phase_time;
-            day.moon_phase_str = JD::time_str(day.moon_phase_time);
+            day.moon_phase_str = jd.time_str(day.moon_phase_time);
         }
 
         day
     }
 
-    /// 计算回历日期
-    pub fn calc_hui_li(&self, jd: f64) -> HuiLiDay {
-        // 以下算法使用Excel测试得到,主要关心年临界与月临界
-        let d = jd + 503105.0; // 调整至回历纪元
-
-        // 周期计算
-        let z = (d / 10631.0).floor(); // 10631为一周期(30年)
-        let mut d = d - z * 10631.0;
-
-        // 年份计算,加0.5作用是保证闰年正确(一周中的闰年是第2,5,7,10,13,16,18,21,24,26,29年)
-        let y = ((d + 0.5) / 354.366).floor();
-        d -= (y * 354.366 + 0.5).floor();
-
-        // 月份计算,分子加0.11,分母加0.01的作用是第354或355天的月份保持为12月
-        let m = ((d + 0.11) / 29.51).floor();
-        d -= (m * 29.5 + 0.5).floor();
-
-        HuiLiDay {
-            year: (z * 30.0 + y + 1.0) as i32,
-            month: (m + 1.0) as i32,
-            day: (d + 1.0) as i32,
-        }
-    }
 
     /// 从公历日期获取农历简单信息
     /// # Arguments 
@@ -835,24 +849,30 @@ impl LunarCalendar {
 
         // 2. 生成儒略日
         let mut jd = JD::new();
-        jd.jd(
-            date.year(),
-            date.month(),
-            date.day(),
-            date.hour() as i32, 
-            date.minute() as i32,
-            date.second() as f64
-        );
+        jd.year = date.year();
+        jd.month = date.month() as i32;
+        jd.day = date.day() as i32;
+        jd.hour = date.hour() as f64;
+        jd.minute = date.minute() as f64;
+        jd.second = date.second() as f64;
+        // jd.jd(
+        //     date.year(),
+        //     date.month(),
+        //     date.day(),
+        //     date.hour() as i32, 
+        //     date.minute() as i32,
+        //     date.second() as f64
+        // );
 
         // 转换为力学时并进行经度修正
         let jde = jd.to_jd() + dt_t(jd.to_jd()) / 24.0;
         let bj_time = jde - 8.0 / 24.0;
         let local_jd = bj_time + local_time_offset / 24.0;
-        let d0 = local_jd.floor() as i32 - J2000;
+        let d0 = local_jd.floor() - J2000;
 
         // 3. 构造基础信息
         let mut day = LunarSimpleDay::default();
-        day.day.d0 = d0;
+        day.day.d0 = d0 as i32;
         day.day.y = date.year();
         day.day.m = date.month() as i32;
         day.day.d = date.day() as i32;
@@ -873,17 +893,17 @@ impl LunarCalendar {
         ssq.calc_year(d0 as f64);
 
         // 5. 找农历月
-        let mut mk = ((d0 - ssq.HS[0]) / 30) as usize;
-        if mk < 13 && ssq.HS[mk + 1] <= d0 {
+        let mut mk = ((d0 as f64 - ssq.new_moons[0]) / 30.0) as usize;
+        if mk < 13 && ssq.new_moons[mk + 1] <= d0 {
             mk += 1;
         }
 
         // 6. 设置月历信息
-        day.Ldi = d0 - ssq.HS[mk];
-        day.lunar_day_name = Self::RI_MC[day.Ldi as usize].to_string();
+        day.ldi = (d0 - ssq.new_moons[mk]) as i32;
+        day.lunar_day_name = RI_MC[day.ldi as usize].to_string();
         day.lunar_month_name = ssq.month_names[mk].clone();
         day.lunar_month_days = ssq.month_days[mk];
-        day.is_leap_month = ssq.leap == mk;
+        day.is_leap_month = ssq.leap == (mk as i32);
         day.next_month_name = if mk < 13 {
             ssq.month_names[mk + 1].clone()
         } else {
@@ -891,17 +911,17 @@ impl LunarCalendar {
         };
 
         // 7. 计算农历年
-        let tmp = if (d0 as f64) < ssq.ZQ[3] { -365.0 } else { 0.0 };
-        let mut d = ssq.ZQ[3] + tmp + 365.25 * 16.0 - 35.0;
+        let tmp = if (d0 as f64) < ssq.solar_terms[3] { -365.0 } else { 0.0 };
+        let mut d = ssq.solar_terms[3] + tmp + 365.25 * 16.0 - 35.0;
         let lunar_year = (d / 365.2422 + 0.5).floor() as i32;
 
         // 8. 计算节气年
-        d = ssq.HS[2];
+        d = ssq.new_moons[2];
         for j in 0..14 {
-            if ssq.month_names[j] != "正" || (ssq.leap == j && j > 0) {
+            if ssq.month_names[j] != "正" || (ssq.leap == j as i32 && j > 0) {
                 continue;
             }
-            d = ssq.HS[j];
+            d = ssq.new_moons[j];
             if (d0 as f64) < d {
                 d -= 365.0;
                 break;
@@ -912,26 +932,26 @@ impl LunarCalendar {
 
         // 9. 设置干支纪年
         let d1 = lunar_year + 12000;
-        day.gan_zhi_year = format!("{}{}", gan[d1 as usize % 10], zhi[d1 as usize % 12]);
+        day.gan_zhi_year = format!("{}{}", GAN[d1 as usize % 10], ZHI[d1 as usize % 12]);
 
         let d2 = lunar_year0 + 12000;
-        day.gan_zhi_year1 = format!("{}{}", gan[d2 as usize % 10], zhi[d2 as usize % 12]);
+        day.gan_zhi_year1 = format!("{}{}", GAN[d2 as usize % 10], ZHI[d2 as usize % 12]);
 
         // 10. 计算农历月及其干支
-        let mut mk = ((d0 as f64 - ssq.ZQ[0]) / 30.43685) as usize;
-        if mk < 12 && d0 as f64 >= ssq.ZQ[2 * mk + 1] {
+        let mut mk = ((d0 as f64 - ssq.solar_terms[0]) / 30.43685) as usize;
+        if mk < 12 && d0 as f64 >= ssq.solar_terms[2 * mk + 1] {
             mk += 1;
         }
-        d = mk as f64 + ((ssq.ZQ[12] + 390.0) / 365.2422).floor() * 12.0 + 900000.0;
+        d = mk as f64 + ((ssq.solar_terms[12] + 390.0) / 365.2422).floor() * 12.0 + 900000.0;
         day.lunar_month = (d as usize % 12) as i32;
-        day.gan_zhi_month = format!("{}{}", gan[(d as usize % 10)], zhi[(d as usize % 12)]);
+        day.gan_zhi_month = format!("{}{}", GAN[d as usize % 10], ZHI[d as usize % 12]);
 
         // 11. 计算日干支
         d = d0 as f64 - 6.0 + 9000000.0;
-        day.gan_zhi_day = format!("{}{}", gan[(d as usize % 10)], zhi[(d as usize % 12)]);
+        day.gan_zhi_day = format!("{}{}", GAN[d as usize % 10], ZHI[d as usize % 12]);
 
         // 12. 设置生肖
-        day.sheng_xiao = sheng_xiao[(d2 as usize % 12)].to_string();
+        day.sheng_xiao = SHENG_XIAO[d2 as usize % 12].to_string();
 
         day
     }
@@ -967,28 +987,28 @@ impl LunarCalendar {
 
         // 年干支
         let v = (k / 12 + 6000000) as usize;
-        bazi.year = format!("{}{}", gan[v % 10], zhi[v % 12]);
+        bazi.year = format!("{}{}", GAN[v % 10], ZHI[v % 12]);
 
         // 月干支
         let v = (k + 2 + 60000000) as usize;
-        bazi.month = format!("{}{}", gan[v % 10], zhi[v % 12]);
+        bazi.month = format!("{}{}", GAN[v % 10], ZHI[v % 12]);
 
         // 日干支
         let v = ((d - 6.0) as i32 + 9000000) as usize;
-        bazi.day = format!("{}{}", gan[v % 10], zhi[v % 12]);
+        bazi.day = format!("{}{}", GAN[v % 10], ZHI[v % 12]);
 
         // 时干支
         let mut v = ((d - 1.0) as i32 * 12 + 90000000 + sc as i32) as usize;
-        bazi.hour = format!("{}{}", gan[v % 10], zhi[v % 12]);
+        bazi.hour = format!("{}{}", GAN[v % 10], ZHI[v % 12]);
 
          // 生成全天时辰表
          v -= sc;
-         let mut time_table = [String::new(); 13];
+         let mut time_table = array::from_fn(|_| String::default());
          for i in 0..13 {
-             let gz = format!("{}{}", gan[(v + i) % 10], zhi[(v + i) % 12]);
+             let gz = format!("{}{}", GAN[(v + i) % 10], ZHI[(v + i) % 12]);
              
              // 存储时辰
-             time_table[i] = gz.clone();
+             time_table[i] = gz.to_string();
              
              // 记录当前时辰
              if i == sc {
@@ -1025,14 +1045,20 @@ impl LunarCalendar {
         // 3. 计算八字信息
         // 转换为儒略日(J2000起算)
         let mut jd = JD::new();
-        jd.jd(
-            detail.year,
-            detail.month as i32,
-            detail.day as i32,
-            detail.hour,
-            detail.minute,
-            detail.second
-        );
+        jd.year = detail.year;
+        jd.month = detail.month as i32;
+        jd.day = detail.day as i32;
+        jd.hour = detail.hour as f64;
+        jd.minute = detail.minute as f64;
+        jd.second = detail.second as f64;
+        // jd.jd(
+        //     detail.year,
+        //     detail.month as i32,
+        //     detail.day as i32,
+        //     detail.hour,
+        //     detail.minute,
+        //     detail.second
+        // );
         let j2000_jd = jd.to_jd() - J2000 as f64;
         
         // 计算八字
@@ -1077,7 +1103,7 @@ impl LunarCalendar {
 
         // 2. 定位农历年
         let mut ssq = SolarTerms::new();
-        let mut year_start = ((year - 2000) as f64 * 365.2422).floor() as i32;
+        let year_start = ((year - 2000) as f64 * 365.2422).floor() as i32;
         
         // 计算该年的信息
         ssq.calc_year(year_start as f64);
@@ -1090,13 +1116,13 @@ impl LunarCalendar {
             if ssq.month_names[i] == YUE_MC[month as usize - 1] {
                 // 检查是否是闰月
                 if is_leap {
-                    if ssq.leap == i {
+                    if ssq.leap == (i as i32) {
                         month_index = i;
                         found = true;
                         break;
                     }
                 } else {
-                    if ssq.leap != i {
+                    if ssq.leap != (i as i32) {
                         month_index = i;
                         found = true;
                         break;
@@ -1110,7 +1136,7 @@ impl LunarCalendar {
         }
 
         // 4. 计算日期对应的儒略日
-        let jd = ssq.HS[month_index] + day - 1;  // 减1是因为农历初一对应HS值
+        let jd = ssq.new_moons[month_index] + day as f64 - 1.0;  // 减1是因为农历初一对应HS值
 
         // 5. 加上时分秒
         let time_offset = hour as f64 / 24.0 
@@ -1121,27 +1147,29 @@ impl LunarCalendar {
         let time_zone = 8.0; // 北京时间为东8区
         let local_time_offset = (longitude - time_zone * 15.0) / 15.0 / 24.0;
 
-        let final_jd = jd as f64 + J2000 as f64 + time_offset - local_time_offset;
+        let final_jd = jd + J2000 + time_offset - local_time_offset;
 
         // 7. 转换为UTC日期时间
         let mut jd_obj = JD::new();
-        if let Some(date) = jd_obj.set_from_jd(final_jd) {
-            Utc.ymd_opt(
-                date.year,
-                date.month as u32,
-                date.day as u32
-            ).and_hms_milli_opt(
-                date.hour as u32,
-                date.minute as u32,
-                date.second as u32,
-                ((date.second - date.second.floor()) * 1000.0) as u32
-            ).single()
+        if jd_obj.set_from_jd(final_jd) {
+            Utc.with_ymd_and_hms(
+                jd_obj.year,
+                jd_obj.month as u32,
+                jd_obj.day as u32,
+                jd_obj.hour as u32,
+                jd_obj.minute as u32,
+                jd_obj.second as u32
+            )
+            // .and_hms_milli_opt(
+            //     ((jd_obj.second - jd_obj.second.floor()) * 1000.0) as u32
+            // )
+            .single()
         } else {
             None
         }
     }
 
-    ///下面都是AI生成的辅助代码，暂时不考虑
+    //下面都是AI生成的辅助代码，暂时不考虑
 
     // /// 计算二十四节气时刻表
     // fn calc_terms_table(&self, t: f64) -> Vec<f64> {
