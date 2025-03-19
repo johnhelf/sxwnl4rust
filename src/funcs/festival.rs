@@ -227,7 +227,7 @@ impl FestivalInfo {
     /// 添加农历节日
     fn add_lunar_festivals(&mut self, lunar_day: &LunarDay) {
         // 农历日期字符串,如"正月初一"
-        let lunar_date = format!("{}{}", lunar_day.lunar_month_name, lunar_day.lunar_day_name);
+        let lunar_date = format!("{}月{}", lunar_day.lunar_month_name, lunar_day.lunar_day_name);
         
         // 非闰月的农历节日
         if !lunar_day.is_leap_month {

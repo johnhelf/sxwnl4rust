@@ -1,3 +1,5 @@
+use crate::eph::eph_base::J2000;
+
 /// 日期结构体
 #[derive(Debug, Clone)]
 pub struct JD {
@@ -55,6 +57,7 @@ impl JD {
         d + n - 1524.5
     }
 
+    
     /// 儒略日数转日期
     pub fn dd(&self, jd: f64) -> Vec<f64> {
         let jd = jd + 0.5;
@@ -77,8 +80,18 @@ impl JD {
         let dd = (b - d - (30.6001 * e as f64).floor() as i32) as f64;
         let mm = if e < 14 { e - 1 } else { e - 13 };
         let yy = if mm > 2 { c - 4716 } else { c - 4715 };
+        // let yy = c;
+
+         //日的小数转为时分秒
+         let hhh = f*24.0;
+         let mmm = (f - hhh ) * 60.0;
+         let sss = (f - hhh - mmm) * 60.0;
+        //  F*=24; r.h=int2(F); F-=r.h;
+        //  F*=60; r.m=int2(F); F-=r.m;
+        //  F*=60; r.s=F;
+
         
-        vec![yy as f64, mm as f64, dd + f]
+        vec![yy as f64, mm as f64, dd + f, hhh, mmm , sss]
     }
 
     /// 日期转字符串
@@ -108,18 +121,22 @@ impl JD {
 
     /// 儒略日转当前时间
     pub fn set_from_jd(&mut self, jd: f64) -> bool {
-        let r = self.dd(jd);
+        let r = self.dd(jd+J2000);
         if r[1]>12.0 || r[1]<=0.0 || r[2].floor() > 31.0 || r[2] <=0.0 {
             return false;
         }
         self.year = r[0] as i32;
         self.month = r[1] as i32;
         self.day = r[2].floor() as i32;
-        let s = r[2] - self.day as f64;
+        // let s = r[2] - self.day as f64;
         
-        self.hour = (s * 24.0).floor();
-        self.minute = ((s * 24.0 - self.hour) * 60.0).floor();
-        self.second = (((s * 24.0 - self.hour) * 60.0 - self.minute) * 60.0).floor();
+        // self.hour = (s * 24.0).floor();
+        // self.minute = ((s * 24.0 - self.hour) * 60.0).floor();
+        // self.second = (((s * 24.0 - self.hour) * 60.0 - self.minute) * 60.0).floor();
+
+        self.hour = r[3];
+        self.minute = r[4];
+        self.second = r[5];
 
         return true;
     }

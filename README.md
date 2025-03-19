@@ -110,6 +110,7 @@ sxwnl4rust/
 ├── examples/            # 示例代码
 │   ├── eph_calculation.rs   # 基本用法示例
 │   ├── lunar_date.rs   # 农历日期转换示例
+│   ├── fest_terms.rs   # 节日及农历节气示例
 │   └── ...
 
 ```
