@@ -434,7 +434,7 @@ impl LunarCalendar {
             day.day.week = (w0 + i) % 7;
             day.day.weeki = (w0 + i) / 7;
             day.day.weekn = (w0 + bdn - 1) / 7 + 1;
-            jd.set_from_jd(day.day.d0 as f64 + J2000);
+            jd.set_from_jd(day.day.d0 as f64);
             day.day.d = jd.day;
 
             // 2. 农历信息

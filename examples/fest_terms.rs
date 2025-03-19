@@ -1,10 +1,10 @@
 
-use sxwnl4rust::lunar::lunar::{JIE_QI_NAMES, LunarCalendar, LunarDay};
+use sxwnl4rust::lunar::lunar::{JIE_QI_NAMES, LunarCalendar};
 use sxwnl4rust::eph::jd::JD;
 use sxwnl4rust::lunar::solar_terms::SolarTerms;
 // use sxwnl4rust::funcs::day::Day;
-use sxwnl4rust::eph::xl::XL;
-use std::f64::consts::PI;
+// use sxwnl4rust::eph::xl::XL;
+// use std::f64::consts::PI;
 use sxwnl4rust::eph::eph_base::J2000;
 
 fn main() {
@@ -64,7 +64,7 @@ fn main() {
     println!("\n2025年1月节日和节气:");
     for day in &month_calendar.days_info {
         let festival = &day.festival;
-        println!("  {}/{} {} {}月{}", year, 1, day.day.d, day.lunar_month_name, day.lunar_day_name);
+        println!("  {}/{}/{} {}月{}", year, 1, day.day.d, day.lunar_month_name, day.lunar_day_name);
         
         if !festival.major.is_empty() {
             println!("    重要节日: {}", festival.major.join(", "));
@@ -98,5 +98,5 @@ fn main() {
     
     // 3. 通过月历获取元旦信息
     let new_year_day = &month_calendar.days_info[0];
-    println!("  2025年元旦节日: {:?}", new_year_day.festival.major);
+    println!("  2025年元旦: {:?}", new_year_day.festival.major);
 }
