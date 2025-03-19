@@ -1,4 +1,4 @@
-use crate::eph::eph_base::{J2000, PI,PI2,pty_zty2};
+use crate::eph::eph_base::{J2000, PI,PI2,pty_zty2,RADD};
 use chrono::{DateTime, Datelike, TimeZone, Utc,Timelike};
 // use lazy_static::lazy_static;
 use crate::eph::delta_t::dt_t;
@@ -1027,7 +1027,7 @@ impl LunarCalendar {
     /// * `longitude` - 经度(度,东经为正)
     /// # Returns
     /// * `BaZiDetail` - 详细八字信息
-    pub fn ming_li_ba_zi_detail(&self, date: &DateTime<Utc>, longitude: f64) -> BaZiDetail {
+    pub fn ming_li_ba_zi_detail(&self, date: &DateTime<Utc>, longitude: f64, time_zone: i32) -> BaZiDetail {
         let mut detail = BaZiDetail::default();
         
         // 1. 设置基本时间信息
@@ -1043,14 +1043,22 @@ impl LunarCalendar {
         detail.day_info = self.get_simple_day(date, longitude);
 
         // 3. 计算八字信息
-        // 转换为儒略日(J2000起算)
-        let mut jd = JD::new();
-        jd.year = detail.year;
-        jd.month = detail.month as i32;
-        jd.day = detail.day as i32;
-        jd.hour = detail.hour as f64;
-        jd.minute = detail.minute as f64;
-        jd.second = detail.second as f64;
+
+        let jd = JD::new();
+        let time = detail.hour as f64 + detail.minute as f64 / 60.0 + detail.second / 3600.0;
+        let jdd = jd.jd(detail.year,detail.month,detail.day as f64 + time / 24.0);
+
+        let time_zone = time_zone as f64;
+
+        // println!("time:{} jdd:{}",time,jdd);
+        // // 转换为儒略日(J2000起算)
+        
+        // jd.year = detail.year;
+        // jd.month = detail.month as i32;
+        // jd.day = detail.day as i32;
+        // jd.hour = detail.hour as f64;
+        // jd.minute = detail.minute as f64;
+        // jd.second = detail.second as f64;
         // jd.jd(
         //     detail.year,
         //     detail.month as i32,
@@ -1059,10 +1067,11 @@ impl LunarCalendar {
         //     detail.minute,
         //     detail.second
         // );
-        let j2000_jd = jd.to_jd() - J2000 as f64;
-        
+        // let j2000_jd = jd.to_jd() - J2000 as f64;
+        let j2000_jd = jdd + time_zone / 24.0 - J2000 as f64;
+        println!("{}!!!!!",j2000_jd);
         // 计算八字
-        detail.bazi = self.ming_li_ba_zi(j2000_jd, longitude);
+        detail.bazi = self.ming_li_ba_zi(j2000_jd, longitude / RADD);
 
         detail
     }
