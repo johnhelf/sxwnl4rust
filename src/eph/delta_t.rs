@@ -1,5 +1,3 @@
-
-
 /// DeltaT计算表
 const DT_AT: [(i32, f64, f64, f64, f64); 23] = [
     (-4000, 108371.7, -13036.80, 392.000, 0.0000),
@@ -27,7 +25,6 @@ const DT_AT: [(i32, f64, f64, f64, f64); 23] = [
     (2028, 72.6, 0.0, 0.0, 0.0),
 ];
 
-
 /// 二次曲线外推计算
 pub fn dt_ext(y: f64, jsd: f64) -> f64 {
     let dy = (y - 1820.0) / 100.0;
@@ -37,9 +34,9 @@ pub fn dt_ext(y: f64, jsd: f64) -> f64 {
 /// 计算TD-UT的时间差
 pub fn dt_calc(y: f64) -> f64 {
     // 获取表中最后两年的数据
-    let y0 = DT_AT[DT_AT.len()-2].0 as f64;
-    let t0 = DT_AT[DT_AT.len()-1].1;
-    
+    let y0 = DT_AT[DT_AT.len() - 2].0 as f64;
+    let t0 = DT_AT[DT_AT.len() - 1].1;
+
     // 超过表中的计算范围则外推
     if y >= y0 {
         let jsd = 31.0; // 瑞士星历表jsd=31
@@ -50,20 +47,19 @@ pub fn dt_calc(y: f64) -> f64 {
         let dv = dt_ext(y0, jsd) - t0;
         return v - dv * (y0 + 100.0 - y) / 100.0;
     }
-    
+
     // 查找分段
     let mut i = 0;
     while i < DT_AT.len() && y >= DT_AT[i].0 as f64 {
         i += 5;
     }
     i -= 5;
-    
+
     // 计算时间差值(以10年为单位)
-    let t1 = (y - DT_AT[i].0 as f64) / 
-             (DT_AT[i+5].0 as f64 - DT_AT[i].0 as f64) * 10.0;
+    let t1 = (y - DT_AT[i].0 as f64) / (DT_AT[i + 5].0 as f64 - DT_AT[i].0 as f64) * 10.0;
     let t2 = t1 * t1;
     let t3 = t2 * t1;
-    
+
     DT_AT[i].1 + DT_AT[i].2 * t1 + DT_AT[i].3 * t2 + DT_AT[i].4 * t3
 }
 

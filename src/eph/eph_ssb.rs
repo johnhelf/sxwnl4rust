@@ -1,11 +1,21 @@
 use crate::eph::eph_base::{
-    CS_AU, CS_GS, PI, RAD, llr_conv, mqc, p_gst2, rad2mrad, rad2str_e, str2rad,J2000, //,rad2rrad
+    CS_AU,
+    CS_GS,
+    J2000, //,rad2rrad
+    PI,
+    RAD,
+    llr_conv,
+    mqc,
+    p_gst2,
+    rad2mrad,
+    rad2str_e,
+    str2rad,
 };
 
+use crate::eph::jd::JD;
 use crate::eph::nutation::Nutation;
 use crate::eph::prece::Prece;
 use crate::eph::xl::XL;
-use crate::eph::jd::JD;
 
 /****************************
 算法取自《天文算法》
@@ -262,7 +272,7 @@ pub fn get_gxc_const(t: f64) -> GxcConst {
 /// 光行差黄道修正(恒星周年光行差)
 /// # Arguments
 /// * `t` - 儒略世纪数
-/// * `a` - 天体黄道坐标[经度,纬度,距离]
+/// * `a` - 天体黄道坐标'\['经度,纬度,距离'\]'
 /// # Returns
 /// * `[f64; 3]` - 修正后的黄道坐标
 pub fn hd_zn_gxc(t: f64, a: &[f64; 3]) -> [f64; 3] {
@@ -283,7 +293,7 @@ pub fn hd_zn_gxc(t: f64, a: &[f64; 3]) -> [f64; 3] {
 /// 计算周年光行差对赤道坐标的影响值
 /// # Arguments
 /// * `t` - 儒略世纪数(J2000起算)
-/// * `a` - 天体赤道坐标[赤经,赤纬,距离]
+/// * `a` - 天体赤道坐标'\['赤经,赤纬,距离'\]'
 /// # Returns
 /// * `[f64; 3]` - 修正后的赤道坐标
 pub fn cd_zn_gxc(t: f64, a: &[f64; 3]) -> [f64; 3] {
@@ -322,8 +332,8 @@ pub fn cd_zn_gxc(t: f64, a: &[f64; 3]) -> [f64; 3] {
 //=================================周年视差或光行差=================================
 /// 严格的恒星视差或光行差改正
 /// # Arguments
-/// * `z` - 某时刻天体赤道坐标(球面坐标),含自行但不含章动和光行差 [α,δ,r]
-/// * `v` - 同时刻地球赤道坐标(直角坐标) [x,y,z]
+/// * `z` - 某时刻天体赤道坐标(球面坐标),含自行但不含章动和光行差 '\['α,δ,r'\]'
+/// * `v` - 同时刻地球赤道坐标(直角坐标) '\['x,y,z'\]'
 /// * `f` - 修正类型:
 ///   - false: 进行光行差修正,v须为SSB速度,返回z+v向量(z向径为光速)
 ///   - true: 做周年视差修正,v须为SSB位置,返回z-v向量(z向径为距离)
@@ -335,7 +345,7 @@ pub fn sc_gxc(z: &[f64; 3], v: &[f64; 3], f: bool) -> [f64; 3] {
     let mut r = *z;
 
     // 光速(AU每儒略世纪)或视差因子
-    let c = if f == false {
+    let c = if !f {
         CS_GS / CS_AU * 86400.0 * 36525.0 // 光速
     } else {
         -z[2] // 视差因子
@@ -357,7 +367,7 @@ pub fn sc_gxc(z: &[f64; 3], v: &[f64; 3], f: bool) -> [f64; 3] {
 /// 一次计算周年视差和光行差
 /// (AI生成的)
 /// # Arguments
-/// * `z` - 天体赤道坐标 [α,δ,r]
+/// * `z` - 天体赤道坐标 '\['α,δ,r'\]'
 /// * `t` - 儒略世纪数
 /// # Returns
 /// * `[f64; 3]` - 修正后的赤道坐标
@@ -380,7 +390,7 @@ pub fn annual_aberration(z: &[f64; 3], t: f64) -> [f64; 3] {
 /// * `t` - 儒略世纪数  
 /// * `prec` - 计算精度,取20表示精确到0.1角秒
 /// # Returns
-/// * `[f64; 3]` - 太阳J2000坐标[经度,纬度,距离]
+/// * `[f64; 3]` - 太阳J2000坐标'\['经度,纬度,距离'\]'
 pub fn sun_2000(t: f64, prec: i32) -> [f64; 3] {
     // 获取地球Date坐标(相对于瞬时黄道)
     let mut a = XL::e_coord(t, prec, prec, prec);
@@ -1612,7 +1622,7 @@ pub fn hx_calc(t: f64, stars: &[f64], q: i32, lx: usize, l: f64, fa: f64) -> Str
                 // let sj = rad2rrad(gst + l - z[0]); // 得到此刻天体时角 注：没用到
                 z[0] += PI / 2.0 - gst - l; // 转到相对于地平赤道分点的赤道坐标
                 let zz = llr_conv(&z, PI / 2.0 - fa); // 恒星地平坐标
-                z = [zz[0],zz[1],zz[2]];
+                z = [zz[0], zz[1], zz[2]];
                 z[0] = rad2mrad(PI / 2.0 - z[0]); // 方位角,高度角
 
                 // 大气折射修正
@@ -1627,23 +1637,15 @@ pub fn hx_calc(t: f64, stars: &[f64], q: i32, lx: usize, l: f64, fa: f64) -> Str
 
         // 格式化输出
         let pos_str = match lx {
-            0 | 2 => format!(
-                "{} {}\n",
-                rad2str_e(z[0], 1, 3),
-                rad2str_e(z[1], 0, 2)
-            ),
-            _ => format!(
-                "{} {}\n",
-                rad2str_e(z[0], 0, 2),
-                rad2str_e(z[1], 0, 2)
-            ),
+            0 | 2 => format!("{} {}\n", rad2str_e(z[0], 1, 3), rad2str_e(z[1], 0, 2)),
+            _ => format!("{} {}\n", rad2str_e(z[0], 0, 2), rad2str_e(z[1], 0, 2)),
         };
 
         result.push_str(&(star_info + &pos_str));
     }
 
     // 添加时间信息和标题
-    let header = format!("{} TD {}\n",JD::new().jd2str(t * 36525.0 + J2000), s0);
+    let header = format!("{} TD {}\n", JD::new().jd2str(t * 36525.0 + J2000), s0);
 
     header + &result + "\n"
 }
