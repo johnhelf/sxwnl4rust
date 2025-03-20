@@ -59,31 +59,34 @@ fn main() {
 
 ```
 sxwnl4rust/
-├── Cargo.toml           # 项目配置文件
-├── README.md            # 项目说明文档
+├── Cargo.toml              # 项目配置文件
+├── README.md               # 项目说明文档
 ├── src/
-│   ├── lib.rs           # 库入口文件
-│   ├── lunar/           # 农历相关模块
-│   │   ├── mod.rs       # 农历模块入口
-│   │   ├── lunar.rs     # 农历核心算法
-│   │   ├── jd.rs        # 儒略日转换
-│   │   └── ...
-│   ├── eph/             # 天文历相关模块
-│   │   ├── mod.rs       # 天文历模块入口
-│   │   ├── eph.rs       # 天文历核心算法
-│   │   ├── msc.rs       # 日月食计算
-│   │   ├── eph0.rs      # 基础天文算法
-│   │   └── ...
-│   ├── util/            # 工具函数
-│   │   ├── mod.rs       # 工具模块入口
-│   │   ├── constants.rs # 常量定义
-│   │   └── ...
-│   └── ...
-├── examples/            # 示例代码
-│   ├── eph_calculation.rs   # 基本用法示例
-│   ├── lunar_date.rs   # 农历日期转换示例
-│   ├── fest_terms.rs   # 节日及农历节气示例
-│   └── ...
+│   ├── lib.rs              # 库入口文件
+│   ├── lunar/              # 农历相关模块
+│   │   ├── mod.rs          # 农历模块入口
+│   │   ├── lunar.rs        # 农历核心算法
+│   │   ├── solar_terms.rs  # 农历节气计算
+│   │   └── niao_hao.rs     # 中国古代年号
+│   ├── eph/                # 天文历相关模块
+│   │   ├── mod.rs          # 天文历模块入口
+│   │   ├── eph.rs          # 天文历核心算法
+│   │   ├── msc.rs          # 日月计算
+│   │   ├── eph_base.rs     # 基础天文算法
+│   │   ├── jd.rs           # 儒略日转换
+│   │   ├── delta_t.rs      # 黄道坐标转换
+│   │   ├── eph_ssb.rs      # 地球的SSB速度计算
+│   │   ├── nutation.rs     # 章动计算
+│   │   ├── prece.rs        # 岁差表
+│   │   ├── szj.rs          # 日月升降计算
+│   │   └── xl.rs           # 星历计算
+│   ├── funcs/              # 其它功能模块
+│   │   ├── mod.rs          # 工具模块入口
+│   └── └── festival.rs     # 节日计算模块
+├── examples/               # 示例代码
+│   ├── eph_calc.rs         # 天文历法计算示例
+│   ├── lunar_date.rs       # 农历日期转换示例
+│   └── fest_terms.rs       # 节日和节气信息示例
 
 ```
 
