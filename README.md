@@ -111,6 +111,7 @@ sxwnl4rust/
 │   ├── eph_calculation.rs   # 基本用法示例
 │   ├── lunar_date.rs   # 农历日期转换示例
 │   ├── fest_terms.rs   # 节日及农历节气示例
+│   ├── bazi_calc.rs   # 八字计算示例
 │   └── ...
 
 ```
