@@ -27,57 +27,29 @@ sxwnl4rust 是在 Claude-3.7-sonnet 的辅助下，从许剑伟老师的寿星�
 ### 农历日期转换
 
 ```rust
-use sxwnl4rust::lunar::Lunar;
+
+use chrono::{TimeZone, Utc};
 
 fn main() {
     // 创建农历计算实例
-    let mut lunar = Lunar::new();
-    
+    let lunar = sxwnl4rust::lunar::lunar::LunarCalendar::default();
+
     // 设置公历日期（年、月、日）
-    lunar.set_day(2023, 5, 1);
-    
+    let date = Utc.with_ymd_and_hms(2025, 5, 1, 12, 0, 0).single().unwrap();
+
     // 获取农历信息
-    let lunar_info = lunar.get_lunar_info();
-    println!("农历日期: {}年{}月{}", lunar_info.lunar_year_name, lunar_info.lunar_month_name, lunar_info.lunar_day_name);
-    println!("干支纪年: {}", lunar_info.gz_year);
-    println!("干支纪月: {}", lunar_info.gz_month);
-    println!("干支纪日: {}", lunar_info.gz_day);
-    
-    // 获取节气信息
-    let jq_info = lunar.get_jieqi_info();
-    if jq_info.is_jieqi {
-        println!("今天是节气: {}", jq_info.name);
-    }
-    
-    // 获取下一个节气
-    let next_jq = lunar.get_next_jieqi();
-    println!("下一个节气: {}, 时间: {}", next_jq.name, next_jq.time);
-}
-```
+    let lunar_day = lunar.get_day_info(&date, 116.4); // 使用北京经度
 
-### 二十四节气计算
-
-```rust
-use sxwnl4rust::lunar::Lunar;
-use chrono::NaiveDateTime;
-
-fn main() {
-    let mut lunar = Lunar::new();
-    
-    // 计算2023年的二十四节气
-    let year = 2023;
-    let jieqi_list = lunar.get_year_jieqi(year);
-    
-    println!("{}年二十四节气:", year);
-    for jq in jieqi_list {
-        // 将儒略日转换为日期时间
-        let dt = NaiveDateTime::from_timestamp_opt(
-            (jq.time - 2440587.5) * 86400.0 as i64, 
-            0
-        ).unwrap();
-        
-        println!("{}: {}", jq.name, dt.format("%Y-%m-%d %H:%M:%S"));
-    }
+    // 输出农历日期信息
+    println!("公历日期: 2025年5月1日");
+    println!(
+        "农历日期: {}年{}月{}",
+        lunar_day.lunar_year, lunar_day.lunar_month_name, lunar_day.lunar_day_name
+    );
+    println!("干支纪年: {}", lunar_day.gan_zhi_year);
+    println!("干支纪月: {}", lunar_day.gan_zhi_month);
+    println!("干支纪日: {}", lunar_day.gan_zhi_day);
+    println!("生肖: {}", lunar_day.sheng_xiao);
 }
 ```
 
