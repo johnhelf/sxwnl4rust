@@ -1,7 +1,11 @@
 [package]
 name = "sxwnl4rust"
 version = "0.1.0"
+authors = ["johnhelf <johnhelf@gmail.com>"]
 edition = "2024"
+description = "寿星万年历的rust版本"
+license = "MIT"
+repository = "https://github.com/johnhelf/sxwnl4rust"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

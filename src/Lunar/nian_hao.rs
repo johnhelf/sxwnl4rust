@@ -1,12 +1,11 @@
 use lazy_static::lazy_static;
 
-
 /// 年号信息结构
 #[derive(Debug, Clone)]
 pub struct NianHaoInfo {
     /// 起始年
     start_year: i32,
-    /// 使用年数 
+    /// 使用年数
     years: i32,
     /// 已用年数
     used_years: i32,
@@ -24,7 +23,7 @@ lazy_static! {
     /// 年号数据库
     static ref NIAN_HAO_DB: Vec<NianHaoInfo> = {
         let mut db = Vec::new();
-        
+
         // 用字符串存储所有年号数据
         let data = "-2069,45,0,夏,禹,,禹|-2024,10,0,夏,启,,启|-2014,25,0,夏,太康,,太康|\
 -1986,14,0,夏,仲康,,仲康|-1972,28,0,夏,相,,相|-1944,2,0,夏,后羿,,后羿|\
@@ -280,7 +279,7 @@ lazy_static! {
 1851,11,0,清,文宗,爱新觉罗奕詝,咸丰|1862,13,0,清,穆宗,爱新觉罗载淳,同治|\
 1875,34,0,清,德宗,爱新觉罗载湉,光绪|1909,3,0,清,无朝,爱新觉罗溥仪,宣统|\
 1912,37,0,近、现代,中华民国,,民国|1949,9999,1948,当代,中国,,公历纪元|";
-                    
+
         // 解析数据
         for item in data.split('|') {
             let fields: Vec<&str> = item.split(',').collect();
@@ -290,17 +289,16 @@ lazy_static! {
                     years: fields[1].parse().unwrap_or(0),
                     used_years: fields[2].parse().unwrap_or(0),
                     dynasty: fields[3].to_string(),
-                    emperor_title: fields[4].to_string(), 
+                    emperor_title: fields[4].to_string(),
                     emperor_name: fields[5].to_string(),
                     era_name: fields[6].to_string()
                 });
             }
         }
-        
+
         db
     };
 }
-
 
 /// 根据年份获取年号
 pub fn get_nian_hao(year: i32) -> String {
@@ -316,25 +314,22 @@ pub fn get_nian_hao(year: i32) -> String {
     for info in NIAN_HAO_DB.iter() {
         if year >= info.start_year && year < info.start_year + info.years {
             let year_in_era = year - info.start_year + 1 + info.used_years;
-            
+
             // 格式化年号字符串
             let mut result = format!("[{}]", info.dynasty);
-            
+
             if !info.emperor_title.is_empty() {
                 result.push_str(&info.emperor_title);
                 result.push(' ');
             }
-            
+
             if !info.emperor_name.is_empty() {
                 result.push_str(&info.emperor_name);
                 result.push(' ');
             }
-            
-            result.push_str(&format!("{} {} 年", 
-                info.era_name,
-                year_in_era
-            ));
-            
+
+            result.push_str(&format!("{} {} 年", info.era_name, year_in_era));
+
             return result;
         }
     }

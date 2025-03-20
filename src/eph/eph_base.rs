@@ -1,7 +1,7 @@
 use crate::eph::delta_t::dt_t;
-pub use std::f64::consts::PI;
-use crate::eph::xl::XL;
 use crate::eph::prece::Prece;
+use crate::eph::xl::XL;
+pub use std::f64::consts::PI;
 
 // 天文常数
 pub const CS_R_EAR: f64 = 6378.1366; // 地球赤道半径(千米)
@@ -154,9 +154,9 @@ pub fn rad2str2(mut d: f64) -> String {
     let b_str = format!("0{}", b);
 
     s.push_str(&a_str[a_str.len() - 3..]);
-    s.push_str("°");
+    s.push('°');
     s.push_str(&b_str[b_str.len() - 2..]);
-    s.push_str("'");
+    s.push('\'');
 
     s
 }
@@ -176,7 +176,7 @@ pub fn m2fm(mut v: f64, fx: usize, fs: i32) -> String {
 
     match fs {
         0 => format!("{}{}'{}\"", gn, f as i32, format!("{:.1$}", m, fx)),
-        1 => format!("{}{}分{}秒", gn, f as i32,  format!("{:.1$}", m, fx)),
+        1 => format!("{}{}分{}秒", gn, f as i32, format!("{:.1$}", m, fx)),
         2 => format!("{}{}m{}s", gn, f as i32, format!("{:.1$}", m, fx)),
         _ => format!("{}{}'{}\"", gn, f as i32, format!("{:.1$}", m, fx)),
     }
@@ -205,7 +205,7 @@ pub fn str2rad(s: &str, f: bool) -> f64 {
 //=================================数学工具=========================================
 /// 对超过0-2PI的角度转为0-2PI
 pub fn rad2mrad(mut v: f64) -> f64 {
-    v = v % (2.0 * PI);
+    v %= 2.0 * PI;
     if v < 0.0 {
         return v + 2.0 * PI;
     }
@@ -214,7 +214,7 @@ pub fn rad2mrad(mut v: f64) -> f64 {
 
 /// 对超过-PI到PI的角度转为-PI到PI
 pub fn rad2rrad(mut v: f64) -> f64 {
-    v = v % (2.0 * PI);
+    v %= 2.0 * PI;
     if v <= -PI {
         return v + 2.0 * PI;
     }
@@ -224,15 +224,10 @@ pub fn rad2rrad(mut v: f64) -> f64 {
     v
 }
 
-
 /// 临界余数(a与最近的整倍数b相差的距离)
 pub fn mod2(a: f64, b: f64) -> f64 {
     let c = (a + b) % b;
-    if c > b / 2.0 {
-        c - b
-    } else {
-        c
-    }
+    if c > b / 2.0 { c - b } else { c }
 }
 
 /// 球面转直角坐标
@@ -242,7 +237,7 @@ pub fn llr2xyz(jw: &[f64]) -> [f64; 3] {
 }
 
 /// 直角坐标转球面
-pub fn xyz2llr(xyz: &[f64]) ->[f64; 3] {
+pub fn xyz2llr(xyz: &[f64]) -> [f64; 3] {
     let (x, y, z) = (xyz[0], xyz[1], xyz[2]);
     let r = (x * x + y * y + z * z).sqrt();
     [rad2mrad(y.atan2(x)), (z / r).asin(), r]
@@ -250,7 +245,7 @@ pub fn xyz2llr(xyz: &[f64]) ->[f64; 3] {
 
 /// 球面坐标旋转
 /// 黄道赤道坐标变换,赤到黄E取负
-pub fn llr_conv(jw: &[f64], e: f64) -> [f64;3] {
+pub fn llr_conv(jw: &[f64], e: f64) -> [f64; 3] {
     let (j, w) = (jw[0], jw[1]);
     let mut r = [
         (j.sin() * e.cos() - w.tan() * e.sin()).atan2(j.cos()),
@@ -262,7 +257,7 @@ pub fn llr_conv(jw: &[f64], e: f64) -> [f64;3] {
 }
 
 /// 赤道坐标转为地平坐标
-pub fn cd2dp(z: &[f64], l: f64, fa: f64, gst: f64) -> [f64;3] {
+pub fn cd2dp(z: &[f64], l: f64, fa: f64, gst: f64) -> [f64; 3] {
     let mut a = [z[0] + PI / 2.0 - gst - l, z[1], z[2]];
     a = llr_conv(&a, PI / 2.0 - fa);
     a[0] = rad2mrad(PI / 2.0 - a[0]);
@@ -397,7 +392,7 @@ pub fn gxc_moon_lat(t: f64) -> f64 {
 /// * `dt` - deltatT(日),精度要求不高时dt可取值为0
 /// # Returns
 /// * 格林尼治平恒星时(不含赤经章动及非多项式部分)
-/// 即格林尼治子午圈的平春风点起算的赤经
+///   即格林尼治子午圈的平春风点起算的赤经
 pub fn p_gst(t: f64, dt: f64) -> f64 {
     let t = (t + dt) / 36525.0;
     let t2 = t * t;
