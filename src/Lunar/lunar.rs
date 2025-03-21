@@ -1080,7 +1080,7 @@ impl LunarCalendar {
         // );
         // let j2000_jd = jd.to_jd() - J2000;
         let j2000_jd = jdd + time_zone / 24.0 - J2000;
-        println!("{}!!!!!", j2000_jd);
+        // println!("{}!!!!!", j2000_jd);
         // 计算八字
         detail.bazi = self.ming_li_ba_zi(j2000_jd, longitude / RADD);
 
