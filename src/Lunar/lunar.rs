@@ -123,6 +123,9 @@ pub struct LunarSimpleDay {
 
     pub ldi: i32, //距农历月首的编移量,0对应初一
 
+    /// 农历月序号
+    pub lmi: i32,
+
     /// 农历日名称(如:初一)
     pub lunar_day_name: String,
     /// 农历月名称
@@ -256,6 +259,14 @@ pub struct BaZiInfo {
     pub cur_hour: String,
     /// 全天时辰表
     pub time_table: [String; 13],
+    /// 年支序号
+    pub y_idx: usize,
+    /// 月支序号
+    pub m_idx: usize,
+    /// 日支序号
+    pub d_idx: usize,
+    /// 时支序号
+    pub h_idx: usize,
 }
 
 /// 八字信息
@@ -904,6 +915,7 @@ impl LunarCalendar {
         // 6. 设置月历信息
         day.ldi = (d0 - ssq.new_moons[mk]) as i32;
         day.lunar_day_name = RI_MC[day.ldi as usize].to_string();
+        day.lmi = if mk >= 2 { mk - 2} else { mk + 10} as i32;
         day.lunar_month_name = ssq.month_names[mk].clone();
         day.lunar_month_days = ssq.month_days[mk];
         day.is_leap_month = ssq.leap == (mk as i32);
@@ -995,18 +1007,22 @@ impl LunarCalendar {
         // 年干支
         let v = (k / 12 + 6000000) as usize;
         bazi.year = format!("{}{}", GAN[v % 10], ZHI[v % 12]);
+        bazi.y_idx = v % 12;
 
         // 月干支
         let v = (k + 2 + 60000000) as usize;
         bazi.month = format!("{}{}", GAN[v % 10], ZHI[v % 12]);
+        bazi.m_idx = v % 12;
 
         // 日干支
         let v = ((d - 6.0) as i32 + 9000000) as usize;
         bazi.day = format!("{}{}", GAN[v % 10], ZHI[v % 12]);
+        bazi.d_idx = v % 12;
 
         // 时干支
         let mut v = ((d - 1.0) as i32 * 12 + 90000000 + sc as i32) as usize;
         bazi.hour = format!("{}{}", GAN[v % 10], ZHI[v % 12]);
+        bazi.h_idx = v % 12;
 
         // 生成全天时辰表
         v -= sc;
@@ -1080,7 +1096,7 @@ impl LunarCalendar {
         // );
         // let j2000_jd = jd.to_jd() - J2000;
         let j2000_jd = jdd + time_zone / 24.0 - J2000;
-        println!("{}!!!!!", j2000_jd);
+        // println!("{}!!!!!", j2000_jd);
         // 计算八字
         detail.bazi = self.ming_li_ba_zi(j2000_jd, longitude / RADD);
 

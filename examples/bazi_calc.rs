@@ -38,8 +38,8 @@ fn main() {
     println!("输入时间：{}\n", dt);
     // println!("真太阳时：{:.2}\n", jd);
     println!("八字结果：");
-    println!("年柱：{}", ba_zi_d.bazi.year);
-    println!("月柱：{}", ba_zi_d.bazi.month);
-    println!("日柱：{}", ba_zi_d.bazi.day);
-    println!("时柱：{}", ba_zi_d.bazi.hour);
+    println!("年柱：{} 年支：{}", ba_zi_d.bazi.year, ba_zi_d.bazi.y_idx);
+    println!("月柱：{} 月支：{}", ba_zi_d.bazi.month, ba_zi_d.bazi.m_idx);
+    println!("日柱：{} 日支：{}", ba_zi_d.bazi.day, ba_zi_d.bazi.d_idx);
+    println!("时柱：{} 时支：{}", ba_zi_d.bazi.hour, ba_zi_d.bazi.h_idx);
 }
