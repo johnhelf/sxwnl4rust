@@ -1127,7 +1127,8 @@ impl LunarCalendar {
         longitude: f64,
     ) -> Option<DateTime<Utc>> {
         // 1. 参数检查
-        if !(1900..=2100).contains(&year)
+        // if !(1900..=2100).contains(&year)
+        if !(0..=3000).contains(&year)
             || !(1..=12).contains(&month)
             || !(1..=30).contains(&day)
             || !(0..=23).contains(&hour)
