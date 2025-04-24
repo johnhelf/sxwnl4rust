@@ -1,6 +1,6 @@
 [package]
 name = "sxwnl4rust"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["johnhelf <johnhelf@gmail.com>"]
 edition = "2024"
 description = "寿星万年历的rust版本"

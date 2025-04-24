@@ -1645,7 +1645,7 @@ pub fn hx_calc(t: f64, stars: &[f64], q: i32, lx: usize, l: f64, fa: f64) -> Str
     }
 
     // 添加时间信息和标题
-    let header = format!("{} TD {}\n", JD::new().jd2str(t * 36525.0 + J2000), s0);
+    let header = format!("{} TD {}\n", JD::default().jd2str(t * 36525.0 + J2000), s0);
 
     header + &result + "\n"
 }

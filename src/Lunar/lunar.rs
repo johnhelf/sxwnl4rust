@@ -237,6 +237,10 @@ pub const YUE_MC: [&str; 12] = [
     "正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "腊",
 ];
 
+pub const YUE_MC_1: [&str; 12] = [
+    "正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二",
+];
+
 // 添加农历日名
 pub const RI_MC: [&str; 31] = [
     "初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十", "十一", "十二",
@@ -382,20 +386,7 @@ impl LunarCalendar {
     /// * `LunarMonth` - 月历信息
     pub fn yue_li_calc(&mut self, year: i32, month: i32) -> LunarMonth {
         // 基本参数计算
-        let mut jd = JD::new();
-        // jd.jd(year, month, 1, 12, 0, 0.1);
-        jd.year = year;
-        jd.month = month;
-        jd.day = 1;
-        jd.hour = 12.0;
-        jd.minute = 0.0;
-        jd.second = 0.1;
-        // jd.h = 12;
-        // jd.m = 0;
-        // jd.s = 0.1;
-        // jd.y = year;
-        // jd.m = month;
-        // jd.d = 1;
+        let mut jd = JD::new(year,month,1,12.0,0.0,0.1);
 
         // 计算月首的儒略日
         let bd0 = jd.to_jd() as i32 - J2000 as i32; //公历月首,中午
@@ -669,26 +660,13 @@ impl LunarCalendar {
         let local_time_offset = (longitude - time_zone * 15.0) / 15.0; // 经度修正(小时)
 
         // 2. 生成儒略日,考虑经度时差
-        let mut jd = JD::new();
-        jd.year = date.year();
-        jd.month = date.month() as i32;
-        jd.day = date.day() as i32;
-        jd.hour = date.hour() as f64;
-        jd.minute = date.minute() as f64;
-        jd.second = date.second() as f64;
-        // jd.jd(
-        //     date.year(),
-        //     date.month(),
-        //     date.day(),
-        //     date.hour() as i32,
-        //     date.minute() as i32,
-        //     date.second() as f64,
-        // );
+        let jd = JD::new(date.year(),date.month() as i32,date.day() as i32,
+            date.hour() as f64,date.minute() as f64,date.second() as f64);
 
         // 转换为力学时
         let jde = jd.to_jd() + dt_t(jd.to_jd()) / 24.0;
         // 转换为北京时
-        let bj_time = jde - 8.0 / 24.0;
+        let bj_time = jde - time_zone / 24.0;
         // 经度修正
         let local_jd = bj_time + local_time_offset / 24.0;
 
@@ -862,25 +840,12 @@ impl LunarCalendar {
         let local_time_offset = (longitude - time_zone * 15.0) / 15.0;
 
         // 2. 生成儒略日
-        let mut jd = JD::new();
-        jd.year = date.year();
-        jd.month = date.month() as i32;
-        jd.day = date.day() as i32;
-        jd.hour = date.hour() as f64;
-        jd.minute = date.minute() as f64;
-        jd.second = date.second() as f64;
-        // jd.jd(
-        //     date.year(),
-        //     date.month(),
-        //     date.day(),
-        //     date.hour() as i32,
-        //     date.minute() as i32,
-        //     date.second() as f64
-        // );
+        let jd = JD::new(date.year(), date.month() as i32, date.day() as i32,
+            date.hour() as f64,date.minute() as f64,date.second() as f64);
 
         // 转换为力学时并进行经度修正
         let jde = jd.to_jd() + dt_t(jd.to_jd()) / 24.0;
-        let bj_time = jde - 8.0 / 24.0;
+        let bj_time = jde - time_zone / 24.0;
         let local_jd = bj_time + local_time_offset / 24.0;
         let d0 = local_jd.floor() - J2000;
 
@@ -1071,31 +1036,17 @@ impl LunarCalendar {
 
         // 3. 计算八字信息
 
-        let jd = JD::new();
+        let jd = JD::default();
         let time = detail.hour as f64 + detail.minute as f64 / 60.0 + detail.second / 3600.0;
         let jdd = jd.jd(detail.year, detail.month, detail.day as f64 + time / 24.0);
 
         let time_zone = time_zone as f64;
 
         // println!("time:{} jdd:{}",time,jdd);
-        // // 转换为儒略日(J2000起算)
-
-        // jd.year = detail.year;
-        // jd.month = detail.month as i32;
-        // jd.day = detail.day as i32;
-        // jd.hour = detail.hour as f64;
-        // jd.minute = detail.minute as f64;
-        // jd.second = detail.second as f64;
-        // jd.jd(
-        //     detail.year,
-        //     detail.month as i32,
-        //     detail.day as i32,
-        //     detail.hour,
-        //     detail.minute,
-        //     detail.second
-        // );
+        // 转换为儒略日(J2000起算)
+        
         // let j2000_jd = jd.to_jd() - J2000;
-        let j2000_jd = jdd + time_zone / 24.0 - J2000;
+        let j2000_jd = jdd - time_zone / 24.0 - J2000;
         // println!("{}!!!!!", j2000_jd);
         // 计算八字
         detail.bazi = self.ming_li_ba_zi(j2000_jd, longitude / RADD);
@@ -1117,7 +1068,7 @@ impl LunarCalendar {
     /// * `Option<DateTime<Utc>>` - 公历日期时间,如果参数无效则返回None
     pub fn from_lunar_date(
         &self,
-        year: i32,
+        mut year: i32,
         month: i32,
         is_leap: bool,
         day: i32,
@@ -1125,6 +1076,7 @@ impl LunarCalendar {
         minute: i32,
         second: f64,
         longitude: f64,
+        time_zone: f64,
     ) -> Option<DateTime<Utc>> {
         // 1. 参数检查
         // if !(1900..=2100).contains(&year)
@@ -1138,35 +1090,55 @@ impl LunarCalendar {
             return None;
         }
 
-        // 2. 定位农历年
-        let mut ssq = SolarTerms::new();
-        let year_start = ((year - 2000) as f64 * 365.2422).floor() as i32;
-
-        // 计算该年的信息
-        ssq.calc_year(year_start as f64);
-
-        // 3. 找到对应的农历月
-        let mut month_index = 0;
         let mut found = false;
+        let mut try_time = 0;
+        let mut month_index = 0;
+        let mut ssq = SolarTerms::new();
 
-        for i in 0..14 {
-            if ssq.month_names[i] == YUE_MC[month as usize - 1] {
-                // 检查是否是闰月
-                if is_leap {
-                    if ssq.leap == (i as i32) {
+        while !found {
+            try_time += 1;
+
+            // 2. 定位农历年
+            let jddd = JD::new(year, 6, 1, 0.0, 0.0, 0.0);
+            // 转换为力学时并进行经度修正
+            let jde = jddd.to_jd();
+
+            // 计算该年的信息
+            ssq.calc_year(jde + dt_t(jde) / 24.0 - J2000);
+            for i in 0..14 {
+                println!("month_name:{} ssq.leap:{} month_index:{}",ssq.month_names[i],ssq.leap,ssq.month_index[i]);
+            }
+
+            // 3. 找到对应的农历月
+            for i in 0..14 {
+                if i < 3 && ssq.month_index[i] < 2 { continue; }
+                println!("month_name:{} ssq.leap:{} ",ssq.month_names[i],ssq.leap);
+                if ssq.month_names[i] == YUE_MC_1[(month - 1) as usize] {
+                // if ssq.month_index[i] == (month -1 ) as usize {
+                    // 检查是否是闰月
+                    if is_leap {
+                        if ssq.leap == (i as i32) {
+                            month_index = i;
+                            found = true;
+                            break;
+                        }
+                    } else if ssq.leap != (i as i32) {
                         month_index = i;
                         found = true;
                         break;
                     }
-                } else if ssq.leap != (i as i32) {
-                    month_index = i;
-                    found = true;
-                    break;
                 }
+            }
+
+            if !found && try_time < 2 {
+                year += 1;
+                ssq = SolarTerms::new();
+            }else{
+                break;
             }
         }
 
-        if !found {
+        if !found  {
             return None;
         }
 
@@ -1177,14 +1149,15 @@ impl LunarCalendar {
         let time_offset = hour as f64 / 24.0 + minute as f64 / 1440.0 + second / 86400.0;
 
         // 6. 考虑经度修正
-        let time_zone = 8.0; // 北京时间为东8区
+        //let time_zone = 8.0; // 北京时间为东8区
         let local_time_offset = (longitude - time_zone * 15.0) / 15.0 / 24.0;
 
-        let final_jd = jd + J2000 + time_offset - local_time_offset;
+        let final_jd = jd + time_offset - local_time_offset;
+
 
         // 7. 转换为UTC日期时间
-        let mut jd_obj = JD::new();
-        if jd_obj.set_from_jd(final_jd) {
+        let mut jd_obj = JD::default();
+        if jd_obj.set_from_jd(final_jd -0.5) { //-0.5 是因为set_from_jd中加了0.5
             Utc.with_ymd_and_hms(
                 jd_obj.year,
                 jd_obj.month as u32,
@@ -1193,9 +1166,6 @@ impl LunarCalendar {
                 jd_obj.minute as u32,
                 jd_obj.second as u32,
             )
-            // .and_hms_milli_opt(
-            //     ((jd_obj.second - jd_obj.second.floor()) * 1000.0) as u32
-            // )
             .single()
         } else {
             None

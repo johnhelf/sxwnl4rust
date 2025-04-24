@@ -296,7 +296,7 @@ impl SZJ {
             r.mj = "--:--:--".to_string();
         }
 
-        let jd_struct = JD::new();
+        let jd_struct = JD::default();
 
         // 计算多天升中降时刻
         for i in -1..=n {

@@ -20,6 +20,9 @@ pub struct SolarTerms {
     pub leap: i32,
     /// 各月名称
     pub month_names: Vec<String>,
+
+    pub month_index: Vec<usize>,
+    
     /// 中气表,其中.liqiu是节气立秋的儒略日,计算三伏时用到
     pub solar_terms: Vec<f64>,
     /// 合朔表
@@ -303,6 +306,7 @@ impl SolarTerms {
                 .push((self.new_moons[i + 1] - self.new_moons[i]) as i32);
 
             // 月序初始化
+            self.month_index.push(i as usize);
             self.month_names.push(i.to_string());
         }
 
@@ -325,10 +329,12 @@ impl SolarTerms {
 
             // 更新月名
             for j in i..14 {
-                let month_num = self.month_names[j].parse::<i32>().unwrap();
-                self.month_names[j] = (month_num - 1).to_string();
+                // let month_num = self.month_names[j].parse::<i32>().unwrap();
+                self.month_names[j] = (self.month_index[j] - 1 ).to_string();
             }
         }
+
+        // for j in 0..14 { println!("ym:{}",self.month_names[j]); }
 
         // 月建名称转换
         self.convert_month_names(); //year_num
@@ -404,24 +410,9 @@ impl SolarTerms {
         }
     }
 
+    /// 月建名称转换
     fn convert_month_names(&mut self) {
-        // 无中气置闰法确定闰月
-        // 第13月的月末没超过冬至(不含冬至),说明该年有13个月
-        if self.new_moons[13] <= self.solar_terms[24] {
-            // 在13个月中找第1个没有中气的月份
-            let mut i = 1;
-            while i < 13 && self.new_moons[i + 1] > self.solar_terms[2 * i] {
-                i += 1;
-            }
-            self.leap = i as i32;
-
-            // 更新月序
-            for j in i..14 {
-                let v = self.month_names[j].parse::<i32>().unwrap();
-                self.month_names[j] = (v - 1).to_string();
-            }
-        }
-
+        
         // 转换各月名称
         for i in 0..14 {
             // Dm为初一的儒略日,v2为月建序号
@@ -453,9 +444,9 @@ impl SolarTerms {
 
             // 调整特殊月名称
             // 239.12.13及23.12.02均为十二月,避免两个连续十二月
-            if (dm - 1729794.0).abs() < 0.1 || (dm - 1808699.0).abs() < 0.1 {
-                mc = "拾贰".to_string();
-            }
+            // if (dm - 1729794.0).abs() < 0.1 || (dm - 1808699.0).abs() < 0.1 {
+            //     mc = "拾贰".to_string();
+            // }
 
             self.month_names[i] = mc;
         }
@@ -687,6 +678,7 @@ impl SolarTerms {
             // qi_kb: [(0.0, 0.0); 30],
             leap: 0,
             month_names: Vec::new(),
+            month_index: Vec::new(),
             solar_terms: Vec::new(),
             new_moons: Vec::new(),
             month_days: Vec::new(),

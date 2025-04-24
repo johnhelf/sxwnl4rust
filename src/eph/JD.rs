@@ -15,7 +15,18 @@ const WEEKS: [&str; 8] = ["日", "一", "二", "三", "四", "五", "六", "七"
 
 impl JD {
     /// 创建新的日期实例
-    pub fn new() -> Self {
+    pub fn new(y:i32,m:i32,d:i32,h:f64,i:f64,s:f64) -> Self {
+        JD {
+            year: y,
+            month: m,
+            day: d,
+            hour: h,
+            minute: i,
+            second: s,
+        }
+    }
+    
+    pub fn default() -> Self {
         JD {
             year: 2000,
             month: 1,
@@ -67,19 +78,39 @@ impl JD {
         }
 
         let b = a + 1524;
-        let c = ((b as f64 - 122.1) / 365.25).floor() as i32;
-        let d = (365.25 * c as f64).floor() as i32;
-        let e = ((b - d) as f64 / 30.6001).floor() as i32;
+        let c = ((b as f64 - 122.1) / 365.25).floor() as i32; //年数
+        let d = (365.25 * c as f64).floor() as i32;  
+        let e = ((b - d) as f64 / 30.6001).floor() as i32; //月数
 
-        let dd = (b - d - (30.6001 * e as f64).floor() as i32) as f64;
-        let mm = if e < 14 { e - 1 } else { e - 13 };
-        let yy = if mm > 2 { c - 4716 } else { c - 4715 };
+        let dd = (b - d - (30.6001 * e as f64).floor() as i32) as f64; //日数
+        let mm;
+        let yy;
+        if e > 13 {
+            mm = e - 13;
+            yy = c - 4715;
+        }else{
+            mm = e -1;
+            yy = c - 4716;
+        }
+        // let mm = if e < 14 { e - 1 } else { e - 13 };
+        // let yy = if mm > 2 { c - 4716 } else { c - 4715 };
         // let yy = c;
 
         //日的小数转为时分秒
-        let hhh = f * 24.0;
-        let mmm = (f - hhh) * 60.0;
-        let sss = (f - hhh - mmm) * 60.0;
+        let mut hhh = f * 24.0;
+        let mut mmm = (hhh - hhh.floor()) * 60.0;
+        let mut sss = ((mmm - mmm.floor()) * 60.0).ceil();
+        hhh = hhh.floor();
+        mmm = mmm.floor();
+
+        if sss == 60.0 {
+            mmm += 1.0;
+            sss = 0.0;
+            if mmm == 60.0 {
+                hhh += 1.0;
+                mmm = 0.0;
+            }
+        }
         //  F*=24; r.h=int2(F); F-=r.h;
         //  F*=60; r.m=int2(F); F-=r.m;
         //  F*=60; r.s=F;
