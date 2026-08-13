@@ -137,9 +137,9 @@ impl FestivalInfo {
         let md = format!("{:02}{:02}", date.day.m, date.day.d);
 
         // 获取当月节日表
-        let month_festivals = SOLAR_FESTIVALS[(date.day.m as usize) - 1]
+        let month_festivals: Vec<&str> = SOLAR_FESTIVALS[(date.day.m as usize) - 1]
             .split(',')
-            .collect::<Vec<_>>();
+            .collect();
 
         // 遍历当月节日
         for fest in month_festivals {

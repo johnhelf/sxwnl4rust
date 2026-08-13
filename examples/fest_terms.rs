@@ -14,7 +14,7 @@ fn main() {
     // 修正JD初始化方式
     println!("\n2025年节气信息:");
     let year = 2025;
-    let mut jd = JD::new();
+    let mut jd = JD::default();
     jd.year = year;
     jd.month = 1;
     jd.day = 1;
@@ -41,7 +41,7 @@ fn main() {
 
     for (i, name) in JIE_QI_NAMES.iter().enumerate() {
         let jq_time = ssq.solar_terms[i];
-        let mut jd = JD::new();
+        let mut jd = JD::default();
         jd.set_from_jd(jq_time); // 使用set_from_jd方法
         println!(
             "  {}: {}年{}月{}日 {:02}:{:02}:{:02}",
@@ -95,7 +95,7 @@ fn main() {
     // 2. 获取清明节（通过节气数据）
     // 修正清明节日期获取方式
     let qingming = ssq.solar_terms[7];
-    let mut jd_qm = JD::new();
+    let mut jd_qm = JD::default();
     jd_qm.set_from_jd(qingming);
     println!("  2025年清明节: {}/{}", jd_qm.month, jd_qm.day);
 

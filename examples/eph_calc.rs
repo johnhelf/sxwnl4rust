@@ -18,7 +18,7 @@ fn main() {
     println!("天文历法计算示例");
 
     // 创建日期计算实例
-    let jd_obj = JD::new();
+    let jd_obj = JD::default();
 
     // 计算儒略日（2023年5月1日12时）
     let d = 1.0 + 12.0 / 24.0; // 1日12时
