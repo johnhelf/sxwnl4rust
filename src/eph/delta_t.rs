@@ -48,19 +48,15 @@ pub fn dt_calc(y: f64) -> f64 {
         return v - dv * (y0 + 100.0 - y) / 100.0;
     }
 
-    // 查找分段
+    // 查找分段：找到满足 DT_AT[i].0 <= y < DT_AT[i+1].0 的段（i 为表序号）
     let mut i = 0;
-    while i < DT_AT.len() && y >= DT_AT[i].0 as f64 {
-        i += 5;
+    while i + 1 < DT_AT.len() && y >= DT_AT[i + 1].0 as f64 {
+        i += 1;
     }
-    i -= 5;
 
-    // 计算时间差值(以10年为单位)
-    let t1 = (y - DT_AT[i].0 as f64) / (DT_AT[i + 5].0 as f64 - DT_AT[i].0 as f64) * 10.0;
-    let t2 = t1 * t1;
-    let t3 = t2 * t1;
-
-    DT_AT[i].1 + DT_AT[i].2 * t1 + DT_AT[i].3 * t2 + DT_AT[i].4 * t3
+    // 计算时间差值：以 (y - DT_AT[i].0) 为自变量做三次插值（与寿星原版一致）
+    let dy = y - DT_AT[i].0 as f64;
+    DT_AT[i].1 + DT_AT[i].2 * dy + DT_AT[i].3 * dy * dy / 10.0 + DT_AT[i].4 * dy * dy * dy / 100.0
 }
 
 /// 计算力学时和世界时的差值
